@@ -38,6 +38,7 @@ class TurtleCurveApp:
         self.step_size = 10.0
         self.min_x = -350
         self.max_x = 350
+        self.delta_x = 1.0  # Numerical differentiation step size
         
         # Draw the curve
         self.draw_curve()
@@ -89,10 +90,9 @@ class TurtleCurveApp:
         
         # Update the turtle's heading to follow the curve
         # Calculate slope at current position
-        delta_x = 1.0
         y1 = self.polynomial_function(self.x_position)
-        y2 = self.polynomial_function(self.x_position + delta_x)
-        slope = (y2 - y1) / delta_x
+        y2 = self.polynomial_function(self.x_position + self.delta_x)
+        slope = (y2 - y1) / self.delta_x
         
         # Convert slope to angle
         angle = np.degrees(np.arctan(slope))
