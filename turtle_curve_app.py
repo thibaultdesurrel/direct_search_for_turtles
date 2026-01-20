@@ -14,7 +14,7 @@ class TurtleCurveApp:
         # Setup the screen
         self.screen = turtle.Screen()
         self.screen.title("Turtle on a Polynomial Curve")
-        self.screen.setup(width=800, height=600)
+        self.screen.setup(width=1200, height=600)
         self.screen.bgcolor("white")
 
         # Create the turtle
@@ -38,8 +38,8 @@ class TurtleCurveApp:
         # Position tracking
         self.x_position = 0.0
         self.step_size = 10.0
-        self.min_x = -350
-        self.max_x = 350
+        self.min_x = -self.screen.window_width() // 2 - 50
+        self.max_x = self.screen.window_width() // 2 - 50
         self.delta_x = 1.0  # Numerical differentiation step size
 
         # Draw the curve
@@ -132,7 +132,7 @@ class TurtleCurveApp:
         instructions.penup()
         instructions.goto(0, 270)
         instructions.write(
-            "Use LEFT and RIGHT arrow keys to move the turtle",
+            "Use LEFT/RIGHT arrow keys to move the turtle and UP/DOWN to adjust step size",
             align="center",
             font=("Arial", 12, "normal"),
         )
