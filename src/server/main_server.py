@@ -4,7 +4,8 @@ import traceback
 import sys
 from client_handler import ClientHandler
 from game import Game
-from game_master import GameMasterGUI  # Your Tkinter class
+from game_master import GameMasterGUI  
+from leaderboard_display import LeaderboardDisplay
 
 def handle_client(connection_id, client_socket, addr, game, lock):
     try:
@@ -64,7 +65,8 @@ def main(port: int, max_connection: int):
     ).start()
 
     # Tkinter MUST run in the main thread
-    gui = GameMasterGUI(game, game_lock)  # this will call root.mainloop()
+    threading.Thread(target=LeaderboardDisplay, args=(game, game_lock), daemon=False).start()
+    gui = GameMasterGUI(game, game_lock) 
 
 
 

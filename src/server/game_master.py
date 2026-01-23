@@ -67,10 +67,23 @@ class GameMasterGUI:
         # Run Tkinter mainloop in the main thread
         self.root.mainloop()
 
+    def show_status(self, text, duration=3000):
+        """
+            Show a temporary message in the leaderboard label
+        """
+        self.label_leaderboard.config(text=f"Status: {text}")
+        self.root.after(duration, self.update_leaderboard)  # restore leaderboard after duration
+
+    def update_leaderboard(self):
+        if self.game.leaderboard:
+            leaderboard_text = {p.username: self.game.leaderboard.player_scores.get(p.id, []) for p in self.game.player_list}
+        else:
+            leaderboard_text = "N/A"
+        self.label_leaderboard.config(text=f"Leaderboard: {leaderboard_text}")
+
     def start_game(self):
         with self.lock:
             if self.game.started:
-                print("Game already started")
                 self.show_status("Game already started")
                 return
 
@@ -78,11 +91,14 @@ class GameMasterGUI:
                 self.show_status("No players connected!")
                 return
 
-            # Update number of rounds and dim from GUI
-            self.game.nb_round = self.round_var.get()
-            selected_dim = int(self.dim_var.get())
+            # Read the number of rounds **directly from the Spinbox text**
+            try:
+                self.game.nb_round = int(self.spin_rounds.get())
+            except ValueError:
+                self.show_status("Invalid number of rounds!")
+                return
 
-            # Start the game with chosen dimension
+            selected_dim = int(self.dim_var.get())
             self.game.start(dim=selected_dim)
 
             print(f"Game started with {len(self.game.player_list)} players, {self.game.nb_round} rounds, dim={selected_dim}")
