@@ -50,3 +50,7 @@ The protocol is yet to define. We can either find on over the internet (I guess)
 When all the steps are done for a function, the concerned client sends `C"SCORE <current_value>` where `current_value` is the function value obtained at the last step (could also be the best one found but it creates a bit of strategy not to).
 
 When all clients have sent their score, the server computes the ranking and sends to each client `S"SCORE <position> <points>` where `position` is the position in the ranking for this function and `points` is the associated number of points gained.
+
+#### Game end
+
+When the game is over or reset we get a `S"GAME over"` from the server and reset the client's display.

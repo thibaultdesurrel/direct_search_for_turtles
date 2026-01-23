@@ -4,7 +4,7 @@ import traceback
 import sys
 from client_handler import ClientHandler
 from game import Game
-from game_master import game_master_loop
+from game_master import GameMasterGUI  # Your Tkinter class
 
 def handle_client(connection_id, client_socket, addr, game, lock):
     try:
@@ -20,44 +20,28 @@ def handle_client(connection_id, client_socket, addr, game, lock):
         client_socket.close()
 
 
-
-def main(port: int, max_connection: int) -> None:
+def server_loop(port, max_connection, game, lock):
     """
-    Accept connections and handle each client in a separate thread
+    Accept connections in a separate thread
     """
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
     server_socket.bind(("", port))
-    print(f"Binding socket to port {port}")
-
     server_socket.listen(max_connection)
-    print(f"Socket is waiting for connections with a maximum of {max_connection}")
+    print(f"Server listening on port {port} (max {max_connection})")
 
     connection_id = 0
-
-    game_lock = threading.Lock()
-    game = Game(dim=1, player_list=[], nb_round=5)
-
-    gm_thread = threading.Thread(
-        target=game_master_loop,
-        args=(game, game_lock),
-        daemon=True
-    )
-    gm_thread.start()
 
     try:
         while True:
             client_socket, addr = server_socket.accept()
             print("Got connection from", addr)
 
-            thread = threading.Thread(
+            threading.Thread(
                 target=handle_client,
-                args=(connection_id, client_socket, addr, game, game_lock),
+                args=(connection_id, client_socket, addr, game, lock),
                 daemon=True
-            )
-        
-            thread.start()
+            ).start()
 
             connection_id += 1
 
@@ -66,6 +50,22 @@ def main(port: int, max_connection: int) -> None:
 
     finally:
         server_socket.close()
+
+
+def main(port: int, max_connection: int):
+    game_lock = threading.Lock()
+    game = Game(dim=1, player_list=[], nb_round=1)
+
+    # Start the server accept loop in a background thread
+    threading.Thread(
+        target=server_loop,
+        args=(port, max_connection, game, game_lock),
+        daemon=True
+    ).start()
+
+    # Tkinter MUST run in the main thread
+    gui = GameMasterGUI(game, game_lock)  # this will call root.mainloop()
+
 
 
 if __name__ == "__main__":

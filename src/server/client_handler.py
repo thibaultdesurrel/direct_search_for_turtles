@@ -85,19 +85,7 @@ class ClientHandler:
         score = float(args[0])
 
         with self.lock:
-            self.game.compute_score(
-                self.player,
-                score,
-                self.current_round
-            )
-
-            if self.game.round_finished(self.current_round):
-                position, points = self.game.get_player_result(
-                    self.player,
-                    self.current_round
-                )
-                self.send(f"SCORE {position} {points}")
-                self.current_round += 1
+            self.game.compute_score(self.player, score)
 
 
     def send(self, message: str):
