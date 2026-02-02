@@ -1,7 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-from tkinter import messagebox
-import threading
 
 class GameMasterGUI:
     def __init__(self, game, lock):
@@ -123,8 +121,8 @@ class GameMasterGUI:
             for p in self.game.player_list:
                 try:
                     p.handler.send("GAME over")
-                except:
-                    pass
+                except e:
+                    self.show_status("Error while ending the game")
             self.game.reset_game()
             print("Game was force finished")
             self.label_leaderboard.config(text="Status: Game force finished")

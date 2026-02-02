@@ -16,4 +16,4 @@ if __name__ == "__main__":
     # Here entry point of the function
     # use python src/server/game/function_generator.py to exectute the code in here
     fg = FunctionGenerator(1)
-    fg.generate_function()
+    f.generate()

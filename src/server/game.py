@@ -118,6 +118,6 @@ class Game:
         self.current_round = 0
         self.submissions = {}
         self.leaderboard = None
-        self.player_list = [] # Kick all player from the game
+        self.player_list = [] # Kick all players from the game
 
 

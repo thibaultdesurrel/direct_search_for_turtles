@@ -75,16 +75,15 @@ class ClientHandler:
 
 
     def handle_score(self, args):
-        if not self.game.started:
-            self.send("ERROR game not started")
-            return
-
         if not args:
             return
 
         score = float(args[0])
 
         with self.lock:
+            if not self.game.started:
+                self.send("ERROR game not started")
+                return
             self.game.compute_score(self.player, score)
 
 
