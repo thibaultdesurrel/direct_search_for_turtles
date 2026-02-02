@@ -64,9 +64,10 @@ def main(port: int, max_connection: int):
         daemon=True
     ).start()
 
-    # Tkinter MUST run in the main thread
-    threading.Thread(target=LeaderboardDisplay, args=(game, game_lock), daemon=False).start()
-    gui = GameMasterGUI(game, game_lock) 
+    # Tkinter MUST run in the main thread — single Tk root, leaderboard as Toplevel
+    gui = GameMasterGUI(game, game_lock)
+    leaderboard = LeaderboardDisplay(game, game_lock)
+    gui.root.mainloop()
 
 
 

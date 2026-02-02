@@ -14,8 +14,8 @@ class LeaderboardDisplay:
         self.last_started_state = False
         self.frozen_data = []
 
-        # Create window
-        self.root = tk.Tk()
+        # Create window as a secondary Toplevel (requires a Tk root to exist already)
+        self.root = tk.Toplevel()
         self.root.title("Game Leaderboard")
 
         screen_width = self.root.winfo_screenwidth() // 3
@@ -45,7 +45,6 @@ class LeaderboardDisplay:
         style.configure("Treeview.Heading", font=("Arial", 44, "bold"))
 
         self.update_leaderboard()
-        self.root.mainloop()
 
     def update_leaderboard(self):
         with self.lock:

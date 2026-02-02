@@ -62,9 +62,6 @@ class GameMasterGUI:
         # Start periodic GUI update
         self.update_gui()
 
-        # Run Tkinter mainloop in the main thread
-        self.root.mainloop()
-
     def show_status(self, text, duration=3000):
         """
             Show a temporary message in the leaderboard label
