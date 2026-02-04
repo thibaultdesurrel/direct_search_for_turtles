@@ -1,5 +1,5 @@
 from leaderboard import Leaderboard
-from function_generator import FunctionGenerator
+from function_generator_claude import FunctionGenerator
 
 
 class Game:
@@ -22,7 +22,6 @@ class Game:
 
         for player in player_list:
             player.game = self
-        
 
     def send_function(self, current_round: int):
         """
@@ -61,7 +60,7 @@ class Game:
                 # game over
                 for p in self.player_list:
                     p.handler.send("GAME over")
-                
+
                 # reset game state so players must rejoin
                 self.reset_game()
 
@@ -70,7 +69,10 @@ class Game:
         Check if all players submitted a score for the round
         """
         for player in self.player_list:
-            if self.leaderboard.player_function_scores[player.id][current_round] is None:
+            if (
+                self.leaderboard.player_function_scores[player.id][current_round]
+                is None
+            ):
                 return False
         return True
 
@@ -86,17 +88,21 @@ class Game:
         self.current_round = 0
         self.submissions = {p.id: False for p in self.player_list}
         self.function_generator = FunctionGenerator(dim)
-        self.function_list = [self.function_generator.generate() for _ in range(self.nb_round)]
+        self.function_list = [
+            self.function_generator.generate() for _ in range(self.nb_round)
+        ]
 
         # broadcast game start
         for player in self.player_list:
             player.handler.send(f"GAME start {self.nb_round}")
             player.handler.send(f"FUNC {self.send_function(self.current_round)}")
 
-
     def round_finished(self, current_round: int):
         for player in self.player_list:
-            if self.leaderboard.player_function_scores[player.id][current_round] is None:
+            if (
+                self.leaderboard.player_function_scores[player.id][current_round]
+                is None
+            ):
                 return False
         return True
 
@@ -106,7 +112,7 @@ class Game:
         ranked = sorted(
             self.player_list,
             key=lambda p: self.leaderboard.player_function_scores[p.id][current_round],
-            reverse=True
+            reverse=True,
         )
 
         position = ranked.index(player) + 1
@@ -118,6 +124,4 @@ class Game:
         self.current_round = 0
         self.submissions = {}
         self.leaderboard = None
-        self.player_list = [] # Kick all players from the game
-
-
+        self.player_list = []  # Kick all players from the game
