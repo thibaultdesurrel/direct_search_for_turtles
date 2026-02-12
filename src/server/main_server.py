@@ -2,10 +2,10 @@ import socket
 import threading
 import traceback
 import sys
-from client_handler import ClientHandler
-from game import Game
-from game_master import GameMasterGUI  
-from leaderboard_display import LeaderboardDisplay
+from .client_handler import ClientHandler
+from .game import Game
+from .game_master import GameMasterGUI  
+from .leaderboard_display import LeaderboardDisplay
 
 def handle_client(connection_id, client_socket, addr, game, lock):
     try:

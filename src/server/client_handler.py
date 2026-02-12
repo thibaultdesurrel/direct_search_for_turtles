@@ -1,4 +1,4 @@
-from player import Player
+from .player import Player
 
 class ClientHandler:
     def __init__(self, id: int, connection, addr, game, lock):
@@ -18,12 +18,7 @@ class ClientHandler:
                 if not data:
                     break
 
-                raw = data.decode().strip()
-                if not raw.startswith('C"') or not raw.endswith('"'):
-                    self.send("ERROR protocol")
-                    continue
-
-                message = raw[2:-1]
+                message = data.decode().strip()
                 self.handle_message(message)
 
         finally:
@@ -88,4 +83,4 @@ class ClientHandler:
 
 
     def send(self, message: str):
-        self.connection.sendall(f'S"{message}"\n'.encode())
+        self.connection.sendall(f'"{message}"\n'.encode())

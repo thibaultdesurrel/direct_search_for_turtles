@@ -94,6 +94,7 @@ class GameMasterGUI:
                 return
 
             selected_dim = int(self.dim_var.get())
+            print(f"### dim is {selected_dim} ###")
             self.game.start(dim=selected_dim)
 
             print(f"Game started with {len(self.game.player_list)} players, {self.game.nb_round} rounds, dim={selected_dim}")

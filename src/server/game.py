@@ -1,6 +1,5 @@
-from leaderboard import Leaderboard
-from function_generator_claude import FunctionGenerator
-
+from .leaderboard import Leaderboard
+from ..shared.function_generator_claude import FunctionGenerator
 
 class Game:
     """
@@ -94,8 +93,9 @@ class Game:
 
         # broadcast game start
         for player in self.player_list:
-            player.handler.send(f"GAME start {self.nb_round}")
-            player.handler.send(f"FUNC {self.send_function(self.current_round)}")
+            player.handler.send(f"GAME start {self.nb_round} {self.dim} {self.function_generator._difficulty} {self.function_generator._domain}")
+            function_seed = self.send_function(self.current_round).seed
+            player.handler.send(f"FUNC {function_seed}")
 
     def round_finished(self, current_round: int):
         for player in self.player_list:
