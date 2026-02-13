@@ -9,6 +9,8 @@ class Leaderboard:
     def __init__(self, player_list: list[Player], nb_round: int):
         self.player_list = player_list
         self.nb_round = nb_round
+        self.frozen = False
+        self.frozen_snapshot = []
 
         self.player_function_scores = {
             player.id: [None] * nb_round for player in player_list
@@ -18,11 +20,38 @@ class Leaderboard:
             player.id: [0] * nb_round for player in player_list
         }
 
+
     def __str__(self):
         return (
             f"Function scores: {self.player_function_scores}\n"
             f"Player scores: {self.player_scores}"
         )
+
+    def freeze(self):
+        if self.frozen:
+            return
+
+        snapshot = []
+        for pid, scores in self.player_scores.items():
+            total = sum(score or 0 for score in scores)
+            snapshot.append((pid, total))
+
+        self.frozen_snapshot = snapshot
+        self.frozen = True
+
+    def unfreeze(self, player_list, nb_round):
+        self.frozen = False
+        self.frozen_snapshot = []
+
+        self.nb_round = nb_round
+        self.player_list = player_list
+
+        self.player_function_scores = {
+            p.id: [None] * nb_round for p in player_list
+        }
+        self.player_scores = {
+            p.id: [0] * nb_round for p in player_list
+        }
 
     def update_function_score(self, player: Player, current_round: int, score: float):
         self.player_function_scores[player.id][current_round] = score

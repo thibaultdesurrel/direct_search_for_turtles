@@ -14,6 +14,9 @@ username = None
 server_function = None
 server_function_generator = None
 nb_round = None
+joined_game = False
+waiting_for_start = False
+waiting_for_func = False
 current_x = 0.0
 steps_left = 10
 step_size = 1.0
@@ -172,49 +175,109 @@ class GameWindow:
         self.explored_ranges = []  # list of (x_min, x_max)
 
     def join_game(self):
+        global joined_game, waiting_for_start
+
+        if joined_game or waiting_for_start:
+            return  # ignore double click
+
         send("GAME")
         reply = receive()
 
         if reply == "GAME ok":
+            joined_game = True
+            waiting_for_start = True
             threading.Thread(target=self.wait_for_start, daemon=True).start()
+        elif reply.startswith("GAME start"):
+            # Server already started the game, handle immediately
+            joined_game = True
+            waiting_for_start = False
+            self.handle_game_start(reply)
+            threading.Thread(target=self.wait_for_func, daemon=True).start()
         else:
             messagebox.showinfo("Info", "Partie indisponible")
 
-    def wait_for_start(self):
+    def handle_game_start(self, msg):
         global nb_round, server_function_generator
-        msg = receive()
 
-        print(f"Game start message is {msg}")
+        split_msg = msg.split()
+        nb_round = int(split_msg[2])
+        dim = int(split_msg[3])
+        difficulty_str = split_msg[4].split(".")[1]
+        difficulty = Difficulty[difficulty_str]
+        domain_str = " ".join(split_msg[5:]).strip()
+        domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
 
-        if msg.startswith("GAME start"):
-            # Parsing
-            split_msg = msg.split()
-            nb_round = int(split_msg[2])
-            dim = int(split_msg[3])
-            difficulty_str = split_msg[4].split(".")[1]
-            difficulty = Difficulty[difficulty_str]
-            domain_str = " ".join(split_msg[5:]).strip()
-            domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
-            server_function_generator = FunctionGenerator(
-                dim, difficulty=difficulty, domain=domain
-            )
-            threading.Thread(target=self.wait_for_func, daemon=True).start()
-        else:
-            print("ERROR while waiting for game to start")
+        server_function_generator = FunctionGenerator(
+            dim, difficulty=difficulty, domain=domain
+        )
+
+    def wait_for_start(self):
+        global waiting_for_start
+
+        while True:
+            msg = receive()
+            print(f"Game start message is {msg}")
+
+            if msg.startswith("GAME start"):
+                waiting_for_start = False
+                self.handle_game_start(msg)
+                threading.Thread(target=self.wait_for_func, daemon=True).start()
+                return
+
+    def reset_client_game(self):
+        global joined_game, waiting_for_start, waiting_for_func
+        global server_function, server_function_generator
+        global nb_round, steps_left, current_x
+
+        joined_game = False
+        waiting_for_start = False
+        waiting_for_func = False
+
+        server_function = None
+        server_function_generator = None
+        nb_round = None
+
+        steps_left = 10
+        current_x = 0.0
+        self.explored_ranges = []
+
+        self.canvas.delete("all")
+        self.info_label.config(text="Pas restants: -")
+        self.info_step.config(text="Taille de pas: 1")
+
+        print("Client game state reset, waiting for join")
 
     def wait_for_func(self):
-        global server_function
-        msg = receive()
-        if msg.startswith("FUNC"):
-            seed = int(msg.split()[1])
-            server_function = server_function_generator.generate(seed)
-            self.draw_region()
-            global steps_left
-            steps_left = 10
-            self.explored_ranges = []
-            self.reveal_at(current_x)
-            self.draw_region()
-            self.info_label.config(text=f"Pas restants: {steps_left}")
+        global server_function, waiting_for_func
+
+        if waiting_for_func:
+            return
+
+        waiting_for_func = True
+
+        while True:
+            msg = receive()
+
+            if msg.startswith("FUNC"):
+                seed = int(msg.split()[1])
+                server_function = server_function_generator.generate(seed)
+
+                global steps_left, current_x
+                steps_left = 10
+                current_x = 0.0
+                self.explored_ranges = []
+
+                self.reveal_at(current_x)
+                self.draw_region()
+                self.info_label.config(text=f"Pas restants: {steps_left}")
+
+                waiting_for_func = False
+                return
+
+            if msg.startswith("GAME over"):
+                waiting_for_func = False
+                self.reset_client_game()
+                return
 
     def reveal_at(self, x):
         min_x, max_x = server_function_generator._domain
@@ -315,6 +378,9 @@ class GameWindow:
 
     def make_step(self):
         global current_x, steps_left
+
+        if not joined_game or waiting_for_start:
+            return
 
         if steps_left <= 0:
             return
