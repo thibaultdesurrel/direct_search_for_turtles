@@ -65,7 +65,7 @@ class ClientHandler:
             if self.player not in self.game.player_list:
                 self.game.player_list.append(self.player)
                 self.player.game = self.game
-
+                
             self.send("GAME ok")
 
 

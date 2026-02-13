@@ -61,7 +61,7 @@ class Game:
                     p.handler.send("GAME over")
 
                 # reset game state so players must rejoin
-                self.reset_game()
+                self.reset_game(kick=True)
 
     def _round_complete(self, current_round: int) -> bool:
         """
@@ -82,7 +82,10 @@ class Game:
         if dim is None:
             dim = self.dim  # fallback to stored dim
         self.dim = dim
-        self.leaderboard = Leaderboard(self.player_list, self.nb_round)
+        if self.leaderboard is None:
+            self.leaderboard = Leaderboard(self.player_list, self.nb_round)
+        else:
+            self.leaderboard.unfreeze(self.player_list, self.nb_round)
         self.started = True
         self.current_round = 0
         self.submissions = {p.id: False for p in self.player_list}
@@ -119,9 +122,11 @@ class Game:
         points = scores
         return position, points
 
-    def reset_game(self):
+    def reset_game(self, kick=False):
         self.started = False
         self.current_round = 0
         self.submissions = {}
-        self.leaderboard = None
-        self.player_list = []  # Kick all players from the game
+        if kick:
+            self.player_list = []  # Kick all players from the game
+        if self.leaderboard:
+            self.leaderboard.freeze()

@@ -48,30 +48,24 @@ class LeaderboardDisplay:
 
     def update_leaderboard(self):
         with self.lock:
-            # Detect game state transitions
-            game_started = self.game.started
-
-            # New game just started → reset display
-            if game_started and not self.last_started_state:
-                self.frozen_data = []
-
-            # Game just ended → freeze final scores
-            if not game_started and self.last_started_state:
-                self.frozen_data = self._collect_scores()
-
-            # Decide what to display
-            if game_started:
-                data = self._collect_scores()
-            else:
-                data = self.frozen_data
-
+            data = self._collect_scores()
             self._render(data)
 
-            self.last_started_state = game_started
-
         self.root.after(1000, self.update_leaderboard)
-
+        
     def _collect_scores(self):
+        # Frozen state → show snapshot
+        if self.game.leaderboard and self.game.leaderboard.frozen:
+            data = []
+            for pid, score in self.game.leaderboard.frozen_snapshot:
+                name = f"id{pid}"
+                for p in self.game.leaderboard.player_list:
+                    if p.id == pid:
+                        name = p.username
+                data.append((name, score))
+            return sorted(data, key=lambda x: x[1], reverse=True)
+
+        # Live game
         data = []
         for player in self.game.player_list:
             total_score = 0
