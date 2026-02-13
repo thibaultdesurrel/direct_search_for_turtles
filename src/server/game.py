@@ -130,3 +130,21 @@ class Game:
             self.player_list = []  # Kick all players from the game
         if self.leaderboard:
             self.leaderboard.freeze()
+
+    def remove_player(self, player):
+        """
+        Remove a player from the game, updating submissions and leaderboard
+        """
+        if player in self.player_list:
+            self.player_list.remove(player)
+            # Remove from submissions tracking
+            if player.id in self.submissions:
+                del self.submissions[player.id]
+            # Optional: remove player from leaderboard
+            if self.leaderboard:
+                self.leaderboard.remove_player(player)
+            print(f"Player {player.id} removed from the game.")
+
+            # If no players left, reset the game
+            if not self.player_list:
+                self.reset_game(kick=True)

@@ -21,8 +21,18 @@ class ClientHandler:
                 message = data.decode().strip()
                 self.handle_message(message)
 
+        except Exception as e:
+            # Optional: log the error
+            print(f"Error with player {self.id}: {e}")
+
         finally:
+            self.running = False
             self.connection.close()
+            # Remove the player from the game
+            if self.game:
+                with self.lock:  # if your game uses a lock for thread safety
+                    self.game.remove_player(self.player)
+            print(f"Player {self.id} has left the game")
 
     def handle_message(self, message: str):
         parts = message.split(" ")
@@ -65,7 +75,7 @@ class ClientHandler:
             if self.player not in self.game.player_list:
                 self.game.player_list.append(self.player)
                 self.player.game = self.game
-                
+
             self.send("GAME ok")
 
 
