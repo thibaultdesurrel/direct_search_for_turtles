@@ -83,4 +83,5 @@ class ClientHandler:
 
 
     def send(self, message: str):
+        print(f"Sending {message} to player {self.player.id}")
         self.connection.sendall(f'"{message}"\n'.encode())

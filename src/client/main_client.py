@@ -313,6 +313,7 @@ class GameWindow:
         if steps_left == 0:
             score = server_function.evaluate(current_x)
             send(f"SCORE {score}")
+            threading.Thread(target=self.wait_for_func, daemon=True).start()
 
 # -------------------------
 # Startup

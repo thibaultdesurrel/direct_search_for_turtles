@@ -136,7 +136,7 @@ class GameMasterGUI:
             self.label_round.config(text=f"Round: {self.game.current_round + 1 if self.game.started else 0}")
 
             # Update current function
-            current_func = self.game.send_function(self.game.current_round) if self.game.started else "N/A"
+            current_func = self.game.send_function(self.game.current_round).seed if self.game.started else "N/A"
             self.label_function.config(text=f"Function: {current_func}")
 
             # Update submissions

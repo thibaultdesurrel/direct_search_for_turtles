@@ -44,17 +44,17 @@ class Game:
             # broadcast results
             for p in self.player_list:
                 pos, pts = self.get_player_result(p, self.current_round)
-                p.handler.send(f"SCORE {pos} {pts}")
 
             # move to next round if any
             if self.current_round + 1 < self.nb_round:
                 self.current_round += 1
+                print(f"Going to round {self.current_round}")
                 # reset submissions for next round
                 self.submissions = {p.id: False for p in self.player_list}
 
                 # send next function
                 for p in self.player_list:
-                    p.handler.send(f"FUNC {self.send_function(self.current_round)}")
+                    p.handler.send(f"FUNC {self.send_function(self.current_round).seed}")
             else:
                 # game over
                 for p in self.player_list:
