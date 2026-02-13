@@ -19,6 +19,7 @@ steps_left = 10
 step_size = 1.0
 direction = 1
 
+
 # -------------------------
 # Networking helpers
 # -------------------------
@@ -26,7 +27,9 @@ def send(msg):
     print(f"Sending {msg}")
     sock.sendall((msg + "\n").encode())
 
+
 buffer = ""  # Keep a buffer outside the function
+
 
 def receive():
     global buffer
@@ -41,6 +44,7 @@ def receive():
     msg = line.strip().strip('"')
     print(f"Got {msg}")
     return msg
+
 
 # -------------------------
 # Connection window
@@ -62,7 +66,9 @@ class ConnectionWindow:
         self.addr_entry.grid(row=1, column=1)
         self.port_entry.grid(row=2, column=1)
 
-        tk.Button(root, text="Connexion", command=self.connect).grid(row=3, column=0, columnspan=2)
+        tk.Button(root, text="Connexion", command=self.connect).grid(
+            row=3, column=0, columnspan=2
+        )
 
     def connect(self):
         global sock, username
@@ -76,6 +82,7 @@ class ConnectionWindow:
             return
 
         try:
+            print("Connecting to server...")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((addr, int(port)))
         except Exception as e:
@@ -93,6 +100,7 @@ class ConnectionWindow:
         else:
             print(repr(reply), type(reply))
             messagebox.showerror("Erreur", f"Réponse serveur inconnue {reply}")
+
 
 # -------------------------
 # Game window
@@ -112,7 +120,9 @@ class GameWindow:
         self.water_img = tk.PhotoImage(file="src/assets/water.png")
         self.sand_img = tk.PhotoImage(file="src/assets/beach.png")
 
-        self.canvas = tk.Canvas(root, width=self.c_width, height=self.c_height, bg="white")
+        self.canvas = tk.Canvas(
+            root, width=self.c_width, height=self.c_height, bg="white"
+        )
         self.canvas.pack()
 
         self.info_label = tk.Label(root, text="Pas restants: 10")
@@ -126,20 +136,40 @@ class GameWindow:
 
         self.dir_var = tk.IntVar(value=0)
 
-        tk.Radiobutton(control_frame, text="←", variable=self.dir_var, value=-1, indicatoron=False, 
-            width=4, command=lambda: self.set_dir(-1)).grid(row=0, column=0)
+        tk.Radiobutton(
+            control_frame,
+            text="←",
+            variable=self.dir_var,
+            value=-1,
+            indicatoron=False,
+            width=4,
+            command=lambda: self.set_dir(-1),
+        ).grid(row=0, column=0)
 
-        tk.Radiobutton(control_frame, text="→", variable=self.dir_var, value=1, indicatoron=False, 
-            width=4, command=lambda: self.set_dir(1)).grid(row=0, column=1)
+        tk.Radiobutton(
+            control_frame,
+            text="→",
+            variable=self.dir_var,
+            value=1,
+            indicatoron=False,
+            width=4,
+            command=lambda: self.set_dir(1),
+        ).grid(row=0, column=1)
 
-        tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(row=1, column=0)
-        tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(row=1, column=1)
-        tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(row=1, column=2)
+        tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(
+            row=1, column=0
+        )
+        tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(
+            row=1, column=1
+        )
+        tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(
+            row=1, column=2
+        )
 
         tk.Button(root, text="Rejoindre une partie", command=self.join_game).pack()
 
-        self.reveal_radius = 0.5   # domain units revealed around turtle
-        self.explored_ranges = [] # list of (x_min, x_max)
+        self.reveal_radius = 0.5  # domain units revealed around turtle
+        self.explored_ranges = []  # list of (x_min, x_max)
 
     def join_game(self):
         send("GAME")
@@ -159,13 +189,15 @@ class GameWindow:
         if msg.startswith("GAME start"):
             # Parsing
             split_msg = msg.split()
-            nb_round = int(split_msg[2])        
-            dim = int(split_msg[3])      
-            difficulty_str = split_msg[4].split(".")[1]   
-            difficulty = Difficulty[difficulty_str] 
-            domain_str = " ".join(split_msg[5:]).strip()  
+            nb_round = int(split_msg[2])
+            dim = int(split_msg[3])
+            difficulty_str = split_msg[4].split(".")[1]
+            difficulty = Difficulty[difficulty_str]
+            domain_str = " ".join(split_msg[5:]).strip()
             domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
-            server_function_generator = FunctionGenerator(dim, difficulty=difficulty, domain=domain)
+            server_function_generator = FunctionGenerator(
+                dim, difficulty=difficulty, domain=domain
+            )
             threading.Thread(target=self.wait_for_func, daemon=True).start()
         else:
             print("ERROR while waiting for game to start")
@@ -221,10 +253,7 @@ class GameWindow:
 
         # Sand (bottom)
         self.canvas.create_image(
-            0,
-            self.c_height - self.sand_img.height(),
-            anchor="nw",
-            image=self.sand_img
+            0, self.c_height - self.sand_img.height(), anchor="nw", image=self.sand_img
         )
 
         min_x, max_x = server_function_generator._domain
@@ -251,10 +280,7 @@ class GameWindow:
 
         # X axis
         self.canvas.create_line(
-            0, mid_y,
-            self.c_width, mid_y,
-            fill="black",
-            dash=(4, 2)
+            0, mid_y, self.c_width, mid_y, fill="black", dash=(4, 2)
         )
 
         # Y axis at domain center
@@ -262,10 +288,7 @@ class GameWindow:
         zero_x = int((-min_x) / (max_x - min_x) * self.c_width)
 
         self.canvas.create_line(
-            zero_x, 0,
-            zero_x, self.c_height,
-            fill="black",
-            dash=(4, 2)
+            zero_x, 0, zero_x, self.c_height, fill="black", dash=(4, 2)
         )
 
         # Draw turtle
@@ -273,9 +296,7 @@ class GameWindow:
         turtle_y = mid_y - server_function.evaluate(current_x) * scale_y
 
         self.canvas.create_oval(
-            turtle_x - 5, turtle_y - 5,
-            turtle_x + 5, turtle_y + 5,
-            fill="red"
+            turtle_x - 5, turtle_y - 5, turtle_x + 5, turtle_y + 5, fill="red"
         )
 
     def set_dir(self, d):
@@ -315,6 +336,7 @@ class GameWindow:
             send(f"SCORE {score}")
             threading.Thread(target=self.wait_for_func, daemon=True).start()
 
+
 # -------------------------
 # Startup
 # -------------------------
@@ -322,6 +344,7 @@ def open_game_window():
     root = tk.Tk()
     GameWindow(root)
     root.mainloop()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
