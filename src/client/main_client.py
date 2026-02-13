@@ -341,7 +341,7 @@ class GameWindow:
                         y = c + j*(d-c)/steps
                         val = server_function.evaluate([x, y])
                         # Map val to color (blue=low, red=high)
-                        color = "#%02x00%02x" % (int(min(max(val*255,0),255)), 0, int(255-int(min(max(val*255,0),255))))
+                        color = "#%02x00%02x" % (int(min(max(val*255,0),255)), int(255-int(min(max(val*255,0),255))))
                         px = int((x - x_min)*scale_x)
                         py = int(self.c_height - (y - y_min)*scale_y)
                         self.canvas.create_rectangle(px, py, px+int(scale_x/steps), py-int(scale_y/steps), outline="", fill=color)
