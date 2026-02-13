@@ -4,6 +4,7 @@ import socket
 import threading
 import random
 import math
+from PIL import Image, ImageTk
 from ..shared.function_generator_claude import FunctionGenerator, Difficulty
 
 # -------------------------
@@ -22,6 +23,7 @@ steps_left = 10
 step_size = 1.0
 direction = 1
 
+
 # -------------------------
 # Networking helpers
 # -------------------------
@@ -29,7 +31,9 @@ def send(msg):
     print(f"Sending {msg}")
     sock.sendall((msg + "\n").encode())
 
+
 buffer = ""  # Keep a buffer outside the function
+
 
 def receive():
     global buffer
@@ -44,6 +48,7 @@ def receive():
     msg = line.strip().strip('"')
     print(f"Got {msg}")
     return msg
+
 
 # -------------------------
 # Connection window
@@ -65,7 +70,9 @@ class ConnectionWindow:
         self.addr_entry.grid(row=1, column=1)
         self.port_entry.grid(row=2, column=1)
 
-        tk.Button(root, text="Connexion", command=self.connect).grid(row=3, column=0, columnspan=2)
+        tk.Button(root, text="Connexion", command=self.connect).grid(
+            row=3, column=0, columnspan=2
+        )
 
     def connect(self):
         global sock, username
@@ -97,6 +104,7 @@ class ConnectionWindow:
             print(repr(reply), type(reply))
             messagebox.showerror("Erreur", f"Réponse serveur inconnue {reply}")
 
+
 # -------------------------
 # Game window
 # -------------------------
@@ -110,11 +118,16 @@ class GameWindow:
         self.root = root
         root.title("Jeu")
 
-        self.turtle_img = tk.PhotoImage(file="src/assets/tortue.png")
+        self.turtle_pil = Image.open("src/assets/tortue.png").convert("RGBA")
+        self.turtle_pil = self.turtle_pil.resize((40, 30), Image.LANCZOS)
+        self.turtle_img = ImageTk.PhotoImage(self.turtle_pil)
+        self._rotated_turtle_img = None  # keep reference to avoid GC
         self.water_img = tk.PhotoImage(file="src/assets/water.png")
         self.sand_img = tk.PhotoImage(file="src/assets/beach.png")
 
-        self.canvas = tk.Canvas(root, width=self.c_width, height=self.c_height, bg="white")
+        self.canvas = tk.Canvas(
+            root, width=self.c_width, height=self.c_height, bg="white"
+        )
         self.canvas.pack()
 
         self.info_label = tk.Label(root, text="Pas restants: 10")
@@ -127,14 +140,28 @@ class GameWindow:
         control_frame.pack()
 
         self.dir_var = tk.StringVar(value="0")
-        tk.Button(control_frame, text="↑", command=lambda: self.set_dir("up")).grid(row=0, column=1)
-        tk.Button(control_frame, text="←", command=lambda: self.set_dir("left")).grid(row=1, column=0)
-        tk.Button(control_frame, text="↓", command=lambda: self.set_dir("down")).grid(row=1, column=1)
-        tk.Button(control_frame, text="→", command=lambda: self.set_dir("right")).grid(row=1, column=2)
+        tk.Button(control_frame, text="↑", command=lambda: self.set_dir("up")).grid(
+            row=0, column=1
+        )
+        tk.Button(control_frame, text="←", command=lambda: self.set_dir("left")).grid(
+            row=1, column=0
+        )
+        tk.Button(control_frame, text="↓", command=lambda: self.set_dir("down")).grid(
+            row=1, column=1
+        )
+        tk.Button(control_frame, text="→", command=lambda: self.set_dir("right")).grid(
+            row=1, column=2
+        )
 
-        tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(row=2, column=0)
-        tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(row=2, column=1)
-        tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(row=2, column=2)
+        tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(
+            row=2, column=0
+        )
+        tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(
+            row=2, column=1
+        )
+        tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(
+            row=2, column=2
+        )
 
         tk.Button(root, text="Rejoindre une partie", command=self.join_game).pack()
 
@@ -167,7 +194,7 @@ class GameWindow:
             threading.Thread(target=self.wait_for_func, daemon=True).start()
         else:
             messagebox.showinfo("Info", "Partie indisponible")
-        
+
     def handle_game_start(self, msg):
         global server_function_generator, nb_round
 
@@ -180,11 +207,16 @@ class GameWindow:
         domain_str = " ".join(split_msg[5:]).strip()
         domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
 
-        server_function_generator = FunctionGenerator(self.dim, difficulty=difficulty, domain=domain)
+        server_function_generator = FunctionGenerator(
+            self.dim, difficulty=difficulty, domain=domain
+        )
 
         if self.dim == 2:
             # Reset position to center of domain
-            self.current_pos = [(domain[0]+domain[1])/2, (domain[0]+domain[1])/2]
+            self.current_pos = [
+                (domain[0] + domain[1]) / 2,
+                (domain[0] + domain[1]) / 2,
+            ]
         else:
             self.current_pos = [0.0]
 
@@ -256,7 +288,6 @@ class GameWindow:
                 self.reset_client_game()
                 return
 
-
     def reveal_at(self, pos):
         if self.dim == 1:
             min_x, max_x = server_function_generator._domain
@@ -297,8 +328,13 @@ class GameWindow:
 
         if self.dim == 1:
 
-            # Sand (bottom) 
-            self.canvas.create_image(0, self.c_height - self.sand_img.height(), anchor="nw", image=self.sand_img)
+            # Sand (bottom)
+            self.canvas.create_image(
+                0,
+                self.c_height - self.sand_img.height(),
+                anchor="nw",
+                image=self.sand_img,
+            )
 
             min_x, max_x = server_function_generator._domain
             domain_width = max_x - min_x
@@ -320,7 +356,25 @@ class GameWindow:
 
             turtle_x = int((self.current_pos[0] - min_x) * scale_x)
             turtle_y = mid_y - server_function.evaluate(self.current_pos[0]) * scale_y
-            self.canvas.create_oval(turtle_x-5, turtle_y-5, turtle_x+5, turtle_y+5, fill="red")
+
+            # Compute slope for rotation
+            eps = 0.01
+            x0 = self.current_pos[0]
+            slope = (
+                server_function.evaluate(x0 + eps) - server_function.evaluate(x0 - eps)
+            ) / (2 * eps)
+            angle_deg = math.degrees(math.atan(slope * scale_y / scale_x))
+
+            # Flip turtle image if going left
+            img = self.turtle_pil
+            if self.direction in ("left", "down"):
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+            rotated = img.rotate(angle_deg, resample=Image.BICUBIC, expand=True)
+            self._rotated_turtle_img = ImageTk.PhotoImage(rotated)
+            self.canvas.create_image(
+                turtle_x, turtle_y - 13, image=self._rotated_turtle_img
+            )
 
         else:
             x_min, x_max = server_function_generator._domain
@@ -337,19 +391,29 @@ class GameWindow:
                 steps = 20
                 for i in range(steps):
                     for j in range(steps):
-                        x = a + i*(b-a)/steps
-                        y = c + j*(d-c)/steps
+                        x = a + i * (b - a) / steps
+                        y = c + j * (d - c) / steps
                         val = server_function.evaluate([x, y])
                         # Map val to color (blue=low, red=high)
-                        color = "#%02x00%02x" % (int(min(max(val*255,0),255)), int(255-int(min(max(val*255,0),255))))
-                        px = int((x - x_min)*scale_x)
-                        py = int(self.c_height - (y - y_min)*scale_y)
-                        self.canvas.create_rectangle(px, py, px+int(scale_x/steps), py-int(scale_y/steps), outline="", fill=color)
+                        color = "#%02x00%02x" % (
+                            int(min(max(val * 255, 0), 255)),
+                            int(255 - int(min(max(val * 255, 0), 255))),
+                        )
+                        px = int((x - x_min) * scale_x)
+                        py = int(self.c_height - (y - y_min) * scale_y)
+                        self.canvas.create_rectangle(
+                            px,
+                            py,
+                            px + int(scale_x / steps),
+                            py - int(scale_y / steps),
+                            outline="",
+                            fill=color,
+                        )
 
             # Draw turtle
-            tx = int((self.current_pos[0]-x_min)*scale_x)
-            ty = int(self.c_height - (self.current_pos[1]-y_min)*scale_y)
-            self.canvas.create_oval(tx-5, ty-5, tx+5, ty+5, fill="red")
+            tx = int((self.current_pos[0] - x_min) * scale_x)
+            ty = int(self.c_height - (self.current_pos[1] - y_min) * scale_y)
+            self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
 
     def set_dir(self, d):
         self.direction = d  # "up", "down", "left", "right"
@@ -367,7 +431,7 @@ class GameWindow:
     def make_step(self):
         global steps_left
 
-        if steps_left <= 0:
+        if steps_left <= 0 or server_function_generator is None:
             return
 
         step = step_size
@@ -403,9 +467,12 @@ class GameWindow:
         self.info_label.config(text=f"Pas restants: {steps_left}")
 
         if steps_left == 0:
-            score = server_function.evaluate(self.current_pos if self.dim==2 else self.current_pos[0])
+            score = server_function.evaluate(
+                self.current_pos if self.dim == 2 else self.current_pos[0]
+            )
             send(f"SCORE {score}")
             threading.Thread(target=self.wait_for_func, daemon=True).start()
+
 
 # -------------------------
 # Startup
@@ -414,6 +481,7 @@ def open_game_window():
     root = tk.Tk()
     GameWindow(root)
     root.mainloop()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
