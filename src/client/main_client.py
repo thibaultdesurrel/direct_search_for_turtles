@@ -88,6 +88,7 @@ class ConnectionWindow:
             print("Connecting to server...")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((addr, int(port)))
+            print("Connected to server")
         except Exception as e:
             messagebox.showerror("Erreur", str(e))
             return
