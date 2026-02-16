@@ -404,9 +404,9 @@ class GameWindow:
                         self.canvas.create_rectangle(
                             px,
                             py,
-                            px + int(scale_x / steps),
-                            py - int(scale_y / steps),
-                            outline="",
+                            px + int(scale_x / steps) + 1,
+                            py - int(scale_y / steps) - 1,
+                            outline=color,
                             fill=color,
                         )
 
