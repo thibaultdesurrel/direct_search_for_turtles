@@ -185,15 +185,28 @@ class GameWindow:
         if reply == "GAME ok":
             joined_game = True
             waiting_for_start = True
+            messagebox.showinfo("Connexion", "Tu es connecté !")
+            self.show_waiting_message()
             threading.Thread(target=self.wait_for_start, daemon=True).start()
         elif reply.startswith("GAME start"):
             # Server already started the game, handle immediately
             joined_game = True
             waiting_for_start = False
+            messagebox.showinfo("Connexion", "Tu es connecté !")
             self.handle_game_start(reply)
             threading.Thread(target=self.wait_for_func, daemon=True).start()
         else:
             messagebox.showinfo("Info", "Partie indisponible")
+
+    def show_waiting_message(self):
+        self.canvas.delete("all")
+        self.canvas.create_text(
+            self.c_width // 2,
+            self.c_height // 2,
+            text="La partie va commencer...",
+            font=("Arial", 24, "bold"),
+            fill="black",
+        )
 
     def handle_game_start(self, msg):
         global server_function_generator, nb_round
