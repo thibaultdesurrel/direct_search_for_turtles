@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
+
 class GameMasterGUI:
     def __init__(self, game, lock):
         self.game = game
@@ -16,17 +17,44 @@ class GameMasterGUI:
         # Number of rounds
         ttk.Label(self.frame_settings, text="Number of rounds:").pack(side="left")
         self.round_var = tk.IntVar(value=self.game.nb_round)
-        self.spin_rounds = ttk.Spinbox(self.frame_settings, from_=1, to=100, width=5, textvariable=self.round_var)
+        self.spin_rounds = ttk.Spinbox(
+            self.frame_settings, from_=1, to=100, width=5, textvariable=self.round_var
+        )
         self.spin_rounds.pack(side="left", padx=5)
 
         # Dimension selection
-        ttk.Label(self.frame_settings, text="Function dim:").pack(side="left", padx=(10,0))
+        ttk.Label(self.frame_settings, text="Function dim:").pack(
+            side="left", padx=(10, 0)
+        )
         self.dim_var = tk.StringVar(value="1")
-        self.combo_dim = ttk.Combobox(self.frame_settings, textvariable=self.dim_var, values=["1", "2"], state="readonly", width=3)
+        self.combo_dim = ttk.Combobox(
+            self.frame_settings,
+            textvariable=self.dim_var,
+            values=["1", "2"],
+            state="readonly",
+            width=3,
+        )
         self.combo_dim.pack(side="left", padx=5)
 
+        # Difficulty selection
+        ttk.Label(self.frame_settings, text="Difficulty:").pack(
+            side="left", padx=(10, 0)
+        )
+        self.difficulty_var = tk.StringVar(value=self.game.difficulty)
+        self.combo_difficulty = ttk.Combobox(
+            self.frame_settings,
+            textvariable=self.difficulty_var,
+            values=["easy", "medium", "hard"],
+            state="readonly",
+            width=6,
+        )
+
+        self.combo_difficulty.pack(side="left", padx=5)
+
         # Force finish button
-        self.button_force = ttk.Button(self.frame_settings, text="Force Finish", command=self.force_finish)
+        self.button_force = ttk.Button(
+            self.frame_settings, text="Force Finish", command=self.force_finish
+        )
         self.button_force.pack(side="left", padx=10)
 
         # Connected players
@@ -53,10 +81,14 @@ class GameMasterGUI:
         self.frame_buttons = ttk.Frame(self.root, padding=10)
         self.frame_buttons.pack(fill="x")
 
-        self.button_start = ttk.Button(self.frame_buttons, text="Start Game", command=self.start_game)
+        self.button_start = ttk.Button(
+            self.frame_buttons, text="Start Game", command=self.start_game
+        )
         self.button_start.pack(side="left", padx=5)
 
-        self.button_reset = ttk.Button(self.frame_buttons, text="Reset Game", command=self.reset_game)
+        self.button_reset = ttk.Button(
+            self.frame_buttons, text="Reset Game", command=self.reset_game
+        )
         self.button_reset.pack(side="left", padx=5)
 
         # Start periodic GUI update
@@ -64,14 +96,19 @@ class GameMasterGUI:
 
     def show_status(self, text, duration=3000):
         """
-            Show a temporary message in the leaderboard label
+        Show a temporary message in the leaderboard label
         """
         self.label_leaderboard.config(text=f"Status: {text}")
-        self.root.after(duration, self.update_leaderboard)  # restore leaderboard after duration
+        self.root.after(
+            duration, self.update_leaderboard
+        )  # restore leaderboard after duration
 
     def update_leaderboard(self):
         if self.game.leaderboard:
-            leaderboard_text = {p.username: self.game.leaderboard.player_scores.get(p.id, []) for p in self.game.player_list}
+            leaderboard_text = {
+                p.username: self.game.leaderboard.player_scores.get(p.id, [])
+                for p in self.game.player_list
+            }
         else:
             leaderboard_text = "N/A"
         self.label_leaderboard.config(text=f"Leaderboard: {leaderboard_text}")
@@ -93,13 +130,20 @@ class GameMasterGUI:
                 self.show_status("Invalid number of rounds!")
                 return
 
+            try:
+                self.game.difficulty = self.difficulty_var.get()
+            except ValueError:
+                self.show_status("Invalid difficulty!")
+                return
+
             selected_dim = int(self.dim_var.get())
             print(f"### dim is {selected_dim} ###")
             self.game.start(dim=selected_dim)
 
-            print(f"Game started with {len(self.game.player_list)} players, {self.game.nb_round} rounds, dim={selected_dim}")
+            print(
+                f"Game started with {len(self.game.player_list)} players, {self.game.nb_round} rounds, dim={selected_dim}"
+            )
             self.show_status(f"Game started (dim={selected_dim})")
-
 
     def reset_game(self):
         with self.lock:
@@ -125,7 +169,6 @@ class GameMasterGUI:
             print("Game was force finished")
             self.label_leaderboard.config(text="Status: Game force finished")
 
-
     def update_gui(self):
         with self.lock:
             # Update connected players
@@ -133,22 +176,34 @@ class GameMasterGUI:
             self.label_players.config(text=f"Connected players: {players}")
 
             # Update round
-            self.label_round.config(text=f"Round: {self.game.current_round + 1 if self.game.started else 0}")
+            self.label_round.config(
+                text=f"Round: {self.game.current_round + 1 if self.game.started else 0}"
+            )
 
             # Update current function
-            current_func = self.game.send_function(self.game.current_round).seed if self.game.started else "N/A"
+            current_func = (
+                self.game.send_function(self.game.current_round).seed
+                if self.game.started
+                else "N/A"
+            )
             self.label_function.config(text=f"Function: {current_func}")
 
             # Update submissions
             if self.game.started:
-                submissions = {p.username: self.game.submissions.get(p.id, False) for p in self.game.player_list}
+                submissions = {
+                    p.username: self.game.submissions.get(p.id, False)
+                    for p in self.game.player_list
+                }
             else:
                 submissions = {}
             self.label_submissions.config(text=f"Submissions: {submissions}")
 
             # Update leaderboard
             if self.game.leaderboard:
-                leaderboard_text = {p.username: self.game.leaderboard.player_scores.get(p.id, []) for p in self.game.player_list}
+                leaderboard_text = {
+                    p.username: self.game.leaderboard.player_scores.get(p.id, [])
+                    for p in self.game.player_list
+                }
             else:
                 leaderboard_text = "N/A"
             self.label_leaderboard.config(text=f"Leaderboard: {leaderboard_text}")

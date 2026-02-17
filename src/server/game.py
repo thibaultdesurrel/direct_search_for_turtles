@@ -1,17 +1,21 @@
 from .leaderboard import Leaderboard
 from ..shared.function_generator_claude import FunctionGenerator
 
+
 class Game:
     """
     Defines a game
     """
 
-    def __init__(self, dim: int, player_list: list, nb_round: int):
+    def __init__(
+        self, dim: int, player_list: list, nb_round: int, difficulty: str = "medium"
+    ):
         self.nb_round = nb_round
         self.player_list = player_list
         self.current_round = 0
         self.started = False
         self.dim = dim
+        self.difficulty = difficulty
 
         self.leaderboard = None
         self.function_generator = None
@@ -54,7 +58,9 @@ class Game:
 
                 # send next function
                 for p in self.player_list:
-                    p.handler.send(f"FUNC {self.send_function(self.current_round).seed}")
+                    p.handler.send(
+                        f"FUNC {self.send_function(self.current_round).seed}"
+                    )
             else:
                 # game over
                 for p in self.player_list:
@@ -96,7 +102,9 @@ class Game:
 
         # broadcast game start
         for player in self.player_list:
-            player.handler.send(f"GAME start {self.nb_round} {self.dim} {self.function_generator._difficulty} {self.function_generator._domain}")
+            player.handler.send(
+                f"GAME start {self.nb_round} {self.dim} {self.difficulty} {self.function_generator._domain}"
+            )
             function_seed = self.send_function(self.current_round).seed
             player.handler.send(f"FUNC {function_seed}")
 

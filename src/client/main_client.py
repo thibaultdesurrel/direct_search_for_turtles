@@ -252,8 +252,8 @@ class GameWindow:
         split_msg = msg.split()
         nb_round = int(split_msg[2])
         self.dim = int(split_msg[3])
-        difficulty_str = split_msg[4].split(".")[1]
-        difficulty = Difficulty[difficulty_str]
+        difficulty_str = split_msg[4]
+        difficulty = Difficulty[difficulty_str.upper()]
 
         domain_str = " ".join(split_msg[5:]).strip()
         domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
