@@ -139,17 +139,34 @@ class GameWindow:
         control_frame = tk.Frame(root)
         control_frame.pack()
 
+        self.root.focus_set()
+        self.root.after(100, lambda: self.root.focus_force())
+
         self.dir_var = tk.StringVar(value="0")
-        tk.Button(control_frame, text="↑", command=lambda: self.set_dir("up")).grid(
+
+        # tk.Button(control_frame, text="↑", command=lambda: self.set_dir("up")).grid(
+        #     row=0, column=1
+        # )
+        # tk.Button(control_frame, text="←", command=lambda: self.set_dir("left")).grid(
+        #     row=1, column=0
+        # )
+        # tk.Button(control_frame, text="↓", command=lambda: self.set_dir("down")).grid(
+        #     row=1, column=1
+        # )
+        # tk.Button(control_frame, text="→", command=lambda: self.set_dir("right")).grid(
+        #     row=1, column=2
+        # )
+
+        tk.Button(control_frame, text="↑", command=lambda: self.move("up")).grid(
             row=0, column=1
         )
-        tk.Button(control_frame, text="←", command=lambda: self.set_dir("left")).grid(
+        tk.Button(control_frame, text="←", command=lambda: self.move("left")).grid(
             row=1, column=0
         )
-        tk.Button(control_frame, text="↓", command=lambda: self.set_dir("down")).grid(
+        tk.Button(control_frame, text="↓", command=lambda: self.move("down")).grid(
             row=1, column=1
         )
-        tk.Button(control_frame, text="→", command=lambda: self.set_dir("right")).grid(
+        tk.Button(control_frame, text="→", command=lambda: self.move("right")).grid(
             row=1, column=2
         )
 
@@ -159,9 +176,9 @@ class GameWindow:
         tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(
             row=2, column=1
         )
-        tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(
-            row=2, column=2
-        )
+        # tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(
+        #     row=2, column=2
+        # )
 
         tk.Button(root, text="Rejoindre une partie", command=self.join_game).pack()
 
@@ -172,6 +189,26 @@ class GameWindow:
         self.current_pos = [0.0, 0.0]  # x for 1D, [x, y] for 2D
         self.dim = 1
         self.direction = "right"
+
+    def bind_keys(self):
+        # On nettoie d'abord les anciens binds
+        self.root.unbind("<Up>")
+        self.root.unbind("<Down>")
+        self.root.unbind("<Left>")
+        self.root.unbind("<Right>")
+
+        if self.dim == 1:
+            # En 1D → seulement gauche / droite
+            self.root.bind("<Left>", lambda e: self.move("left"))
+            self.root.bind("<Right>", lambda e: self.move("right"))
+        else:
+            # En 2D → toutes les flèches
+            self.root.bind("<Up>", lambda e: self.move("up"))
+            self.root.bind("<Down>", lambda e: self.move("down"))
+            self.root.bind("<Left>", lambda e: self.move("left"))
+            self.root.bind("<Right>", lambda e: self.move("right"))
+
+        self.root.after(50, lambda: self.root.focus_force())
 
     def join_game(self):
         global joined_game, waiting_for_start
@@ -232,6 +269,7 @@ class GameWindow:
             ]
         else:
             self.current_pos = [0.0]
+        self.bind_keys()
 
     def wait_for_start(self):
         global waiting_for_start
@@ -433,13 +471,17 @@ class GameWindow:
 
     def increase_step(self):
         global step_size
-        step_size = round(step_size * 2.0, ndigits=1)
+        step_size = round(step_size * 1.3, ndigits=1)
         self.info_step.config(text=f"Taille de pas: {step_size}")
 
     def decrease_step(self):
         global step_size
-        step_size = round(max(step_size * 0.5, 0), ndigits=1)
+        step_size = round(max(step_size * 0.7, 0), ndigits=1)
         self.info_step.config(text=f"Taille de pas: {step_size}")
+
+    def move(self, direction):
+        self.direction = direction
+        self.make_step()
 
     def make_step(self):
         global steps_left
