@@ -1,5 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import font
+
+my_font = ("Segoe UI Symbol", 10)  # Police qui gère bien les flèches
 import socket
 import threading
 import random
@@ -157,18 +160,18 @@ class GameWindow:
         #     row=1, column=2
         # )
 
-        tk.Button(control_frame, text="↑", command=lambda: self.move("up")).grid(
-            row=0, column=1
-        )
-        tk.Button(control_frame, text="←", command=lambda: self.move("left")).grid(
-            row=1, column=0
-        )
-        tk.Button(control_frame, text="↓", command=lambda: self.move("down")).grid(
-            row=1, column=1
-        )
-        tk.Button(control_frame, text="→", command=lambda: self.move("right")).grid(
-            row=1, column=2
-        )
+        tk.Button(
+            control_frame, text="↑", font=my_font, command=lambda: self.move("up")
+        ).grid(row=0, column=1)
+        tk.Button(
+            control_frame, text="←", font=my_font, command=lambda: self.move("left")
+        ).grid(row=1, column=0)
+        tk.Button(
+            control_frame, text="↓", font=my_font, command=lambda: self.move("down")
+        ).grid(row=1, column=1)
+        tk.Button(
+            control_frame, text="→", font=my_font, command=lambda: self.move("right")
+        ).grid(row=1, column=2)
 
         tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(
             row=2, column=0
