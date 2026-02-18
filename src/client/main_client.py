@@ -460,42 +460,50 @@ class GameWindow:
             )
 
         else:
+            import numpy as np
+            from PIL import Image, ImageTk
+
             x_min, x_max = server_function_generator._domain
             y_min, y_max = server_function_generator._domain
-            domain_width = x_max - x_min
-            domain_height = y_max - y_min
 
-            scale_x = self.c_width / domain_width
-            scale_y = self.c_height / domain_height
+            # Dark-grey base image for unexplored areas
+            img_arr = np.full((self.c_height, self.c_width, 3), 30, dtype=np.uint8)
 
-            # Draw color map
-            for rect in self.explored_ranges:
-                a, b, c, d = rect
-                steps = 20
-                for i in range(steps):
-                    for j in range(steps):
-                        x = a + i * (b - a) / steps
-                        y = c + j * (d - c) / steps
-                        val = server_function.evaluate([x, y])
-                        # Map val to color (blue=low, red=high)
-                        color = "#%02x00%02x" % (
-                            int(min(max(val * 255, 0), 255)),
-                            int(255 - int(min(max(val * 255, 0), 255))),
-                        )
-                        px = int((x - x_min) * scale_x)
-                        py = int(self.c_height - (y - y_min) * scale_y)
-                        self.canvas.create_rectangle(
-                            px,
-                            py,
-                            px + int(scale_x / steps) + 1,
-                            py - int(scale_y / steps) - 1,
-                            outline=color,
-                            fill=color,
-                        )
+            # Evaluate all revealed rects and collect values for global normalisation
+            region_data = []
+            all_vals = []
+            for a, b, c, d in self.explored_ranges:
+                px0 = int((a - x_min) / (x_max - x_min) * self.c_width)
+                px1 = int((b - x_min) / (x_max - x_min) * self.c_width)
+                py0 = int((1 - (d - y_min) / (y_max - y_min)) * self.c_height)
+                py1 = int((1 - (c - y_min) / (y_max - y_min)) * self.c_height)
+                w = max(px1 - px0, 1)
+                h = max(py1 - py0, 1)
+                xs = np.linspace(a, b, w)
+                ys = np.linspace(d, c, h)  # top→bottom in canvas = high y → low y
+                X, Y = np.meshgrid(xs, ys)
+                Z = server_function._raw_eval((X, Y))
+                region_data.append((px0, py0, w, h, Z))
+                all_vals.append(Z.ravel())
+
+            if all_vals:
+                flat = np.concatenate(all_vals)
+                g_min, g_max = flat.min(), flat.max()
+                val_range = max(g_max - g_min, 1e-10)
+                for px0, py0, w, h, Z in region_data:
+                    Z_norm = (Z - g_min) / val_range
+                    R = (Z_norm * 255).astype(np.uint8)
+                    G = np.zeros_like(R)
+                    B = (255 - R).astype(np.uint8)
+                    img_arr[py0:py0 + h, px0:px0 + w] = np.stack([R, G, B], axis=2)
+
+            img = Image.fromarray(img_arr, "RGB")
+            self._region_img = ImageTk.PhotoImage(img)
+            self.canvas.create_image(0, 0, anchor="nw", image=self._region_img)
 
             # Draw turtle
-            tx = int((self.current_pos[0] - x_min) * scale_x)
-            ty = int(self.c_height - (self.current_pos[1] - y_min) * scale_y)
+            tx = int((self.current_pos[0] - x_min) / (x_max - x_min) * self.c_width)
+            ty = int((1 - (self.current_pos[1] - y_min) / (y_max - y_min)) * self.c_height)
             self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
 
     def show_round_end(self, score):
