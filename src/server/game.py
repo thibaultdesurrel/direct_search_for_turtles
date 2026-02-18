@@ -30,6 +30,8 @@ class Game:
         self.function_list = None
 
         self.submissions = {}  # track who submitted score for current round
+        self.waiting_for_next_round = False  # set True when all submitted, waiting for GM
+        self.player_positions = {}  # final position strings for reveal, keyed by player.id
 
         for player in player_list:
             player.game = self
@@ -40,42 +42,64 @@ class Game:
         """
         return self.function_list[current_round]
 
-    def compute_score(self, player, score: float):
+    def compute_score(self, player, score: float, pos_str: str = ""):
         if self.submissions[player.id]:
             return
 
-        # register player's score
+        # register player's score and final position
         self.leaderboard.update_function_score(player, self.current_round, score)
         self.submissions[player.id] = True
+        if pos_str:
+            self.player_positions[player.id] = pos_str
 
         # check if all players submitted
         if all(self.submissions.values()):
             # compute points
             self.leaderboard.update_player_scores(self.current_round)
 
-            # broadcast results
+            # wait for the Game Master to click "Next Round"
+            self.waiting_for_next_round = True
+            print(f"Round {self.current_round} complete — waiting for Game Master to advance")
+
+    def advance_round(self):
+        """Called by the Game Master to proceed to the next round (or end the game)."""
+        if not self.waiting_for_next_round:
+            return
+
+        self.waiting_for_next_round = False
+        self.player_positions = {}
+
+        if self.current_round + 1 < self.nb_round:
+            self.current_round += 1
+            print(f"Going to round {self.current_round}")
+            self.submissions = {p.id: False for p in self.player_list}
             for p in self.player_list:
-                pos, pts = self.get_player_result(p, self.current_round)
+                p.handler.send(f"FUNC {self.send_function(self.current_round).seed}")
+        else:
+            for p in self.player_list:
+                p.handler.send("GAME over")
+            self.reset_game(kick=True)
 
-            # move to next round if any
-            if self.current_round + 1 < self.nb_round:
-                self.current_round += 1
-                print(f"Going to round {self.current_round}")
-                # reset submissions for next round
-                self.submissions = {p.id: False for p in self.player_list}
+    def reveal(self):
+        """Broadcast a REVEAL message with each player's final position and score."""
+        if not self.started or not self.waiting_for_next_round:
+            return
 
-                # send next function
-                for p in self.player_list:
-                    p.handler.send(
-                        f"FUNC {self.send_function(self.current_round).seed}"
-                    )
-            else:
-                # game over
-                for p in self.player_list:
-                    p.handler.send("GAME over")
+        parts = []
+        for p in self.player_list:
+            pos_str = self.player_positions.get(p.id, "")
+            score = self.leaderboard.player_function_scores[p.id][self.current_round]
+            if score is None or score == float("inf"):
+                continue  # force-finished player: no meaningful position or score to show
+            if not pos_str:
+                continue  # no position recorded, skip marker
+            parts.append(f"{p.username}|{pos_str}|{score:.6f}")
 
-                # reset game state so players must rejoin
-                self.reset_game(kick=True)
+        # Always send REVEAL so clients display the full function and their own score panel
+        msg = "REVEAL " + " ".join(parts)
+        for p in self.player_list:
+            p.handler.send(msg)
+        print(f"Revealed round {self.current_round}: {msg}")
 
     def _round_complete(self, current_round: int) -> bool:
         """
@@ -142,6 +166,8 @@ class Game:
         self.started = False
         self.current_round = 0
         self.submissions = {}
+        self.waiting_for_next_round = False
+        self.player_positions = {}
         if kick:
             self.player_list = []  # Kick all players from the game
         if self.leaderboard:

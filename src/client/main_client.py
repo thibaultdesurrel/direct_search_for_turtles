@@ -9,6 +9,7 @@ import random
 import math
 from PIL import Image, ImageTk
 from ..shared.function_generator_claude import FunctionGenerator, Difficulty
+import numpy as np
 
 # -------------------------
 # Global state
@@ -147,19 +148,6 @@ class GameWindow:
 
         self.dir_var = tk.StringVar(value="0")
 
-        # tk.Button(control_frame, text="↑", command=lambda: self.set_dir("up")).grid(
-        #     row=0, column=1
-        # )
-        # tk.Button(control_frame, text="←", command=lambda: self.set_dir("left")).grid(
-        #     row=1, column=0
-        # )
-        # tk.Button(control_frame, text="↓", command=lambda: self.set_dir("down")).grid(
-        #     row=1, column=1
-        # )
-        # tk.Button(control_frame, text="→", command=lambda: self.set_dir("right")).grid(
-        #     row=1, column=2
-        # )
-
         tk.Button(
             control_frame, text="↑", font=my_font, command=lambda: self.move("up")
         ).grid(row=0, column=1)
@@ -174,14 +162,11 @@ class GameWindow:
         ).grid(row=1, column=2)
 
         tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(
-            row=2, column=0
+            row=1, column=3
         )
         tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(
-            row=2, column=1
+            row=0, column=3
         )
-        # tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(
-        #     row=2, column=2
-        # )
 
         tk.Button(root, text="Rejoindre une partie", command=self.join_game).pack()
 
@@ -192,6 +177,10 @@ class GameWindow:
         self.current_pos = [0.0, 0.0]  # x for 1D, [x, y] for 2D
         self.dim = 1
         self.direction = "right"
+
+        # Adaptive 1D scaling (recomputed each round)
+        self.scale_y = 20
+        self.plot_mid_y = self.c_height // 2
 
     def bind_keys(self):
         # On nettoie d'abord les anciens binds
@@ -247,7 +236,7 @@ class GameWindow:
         )
 
     def handle_game_start(self, msg):
-        global server_function_generator, nb_round, steps_left
+        global server_function_generator, nb_round, steps_left, step_size
 
         split_msg = msg.split()
         nb_round = int(split_msg[2])
@@ -256,6 +245,7 @@ class GameWindow:
         difficulty = Difficulty[difficulty_str.upper()]
         self.steps_left_max = int(split_msg[5])
         self.reveal_radius = float(split_msg[6])
+        step_size = 1.0
         steps_left = self.steps_left_max
         domain_str = " ".join(split_msg[7:]).strip()
         domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
@@ -288,7 +278,7 @@ class GameWindow:
                 return
 
     def reset_client_game(self):
-        global joined_game, waiting_for_start, waiting_for_func
+        global joined_game, waiting_for_start, waiting_for_func, step_size
         global server_function, server_function_generator
         global nb_round, steps_left, current_x
 
@@ -303,6 +293,7 @@ class GameWindow:
         steps_left = self.steps_left_max
         print(f"Resetting client game, steps_left set to {steps_left}")
         current_x = 0.0
+        step_size = 1.0
         self.explored_ranges = []
 
         self.canvas.delete("all")
@@ -326,17 +317,45 @@ class GameWindow:
                 seed = int(msg.split()[1])
                 server_function = server_function_generator.generate(seed)
 
-                global steps_left
+                global steps_left, step_size
                 steps_left = self.steps_left_max
+                step_size = 1.0
                 self.current_pos = [0.0, 0.0]
                 self.explored_ranges = []
+
+                # Compute adaptive scaling from the full function range
+                if self.dim == 1:
+                    _xs = np.linspace(*server_function_generator._domain, 600)
+                    _ys = server_function._raw_eval(_xs)
+                    _f_min, _f_max = float(_ys.min()), float(_ys.max())
+                    _f_range = _f_max - _f_min if _f_max != _f_min else 1.0
+                    _margin = self.c_height * 0.12
+                    self.scale_y = (self.c_height - 2 * _margin) / _f_range
+                    self.plot_mid_y = int(_margin + _f_max * self.scale_y)
+                else:
+                    _lo, _hi = server_function_generator._domain
+                    _xs = np.linspace(_lo, _hi, 100)
+                    _X, _Y = np.meshgrid(_xs, _xs)
+                    _Z = server_function._raw_eval((_X, _Y))
+                    self.func_z_min = float(_Z.min())
+                    self.func_z_max = float(_Z.max())
 
                 self.reveal_at(self.current_pos)
                 self.draw_region()
                 self.info_label.config(text=f"Pas restants: {steps_left}")
+                self.info_step.config(text="Taille de pas: 1.0")
 
-                waiting_for_func = False
-                return
+                # Stay in the loop: keep listening during the round so a
+                # mid-round GAME over (Force Finish) is caught immediately.
+                continue
+
+            if msg.startswith("REVEAL"):
+                players_data = self._parse_reveal(msg)
+                self.root.after(0, lambda d=players_data: self.draw_reveal(d))
+                self.root.after(
+                    0, lambda: self.info_label.config(text="Fonction révélée !")
+                )
+                continue  # keep waiting for FUNC or GAME over
 
             if msg.startswith("GAME over"):
                 waiting_for_func = False
@@ -394,8 +413,8 @@ class GameWindow:
             min_x, max_x = server_function_generator._domain
             domain_width = max_x - min_x
             scale_x = self.c_width / domain_width
-            scale_y = 20
-            mid_y = self.c_height // 2
+            scale_y = self.scale_y
+            mid_y = self.plot_mid_y
 
             for a, b in self.explored_ranges:
                 start_px = int((a - min_x) * scale_x)
@@ -434,48 +453,266 @@ class GameWindow:
         else:
             x_min, x_max = server_function_generator._domain
             y_min, y_max = server_function_generator._domain
-            domain_width = x_max - x_min
-            domain_height = y_max - y_min
 
-            scale_x = self.c_width / domain_width
-            scale_y = self.c_height / domain_height
+            # Dark-grey base image for unexplored areas
+            img_arr = np.full((self.c_height, self.c_width, 3), 30, dtype=np.uint8)
 
-            # Draw color map
-            for rect in self.explored_ranges:
-                a, b, c, d = rect
-                steps = 20
-                for i in range(steps):
-                    for j in range(steps):
-                        x = a + i * (b - a) / steps
-                        y = c + j * (d - c) / steps
-                        val = server_function.evaluate([x, y])
-                        # Map val to color (blue=low, red=high)
-                        color = "#%02x00%02x" % (
-                            int(min(max(val * 255, 0), 255)),
-                            int(255 - int(min(max(val * 255, 0), 255))),
-                        )
-                        px = int((x - x_min) * scale_x)
-                        py = int(self.c_height - (y - y_min) * scale_y)
-                        self.canvas.create_rectangle(
-                            px,
-                            py,
-                            px + int(scale_x / steps) + 1,
-                            py - int(scale_y / steps) - 1,
-                            outline=color,
-                            fill=color,
-                        )
+            # Evaluate all revealed rects and collect values for global normalisation
+            region_data = []
+            all_vals = []
+            for a, b, c, d in self.explored_ranges:
+                px0 = int((a - x_min) / (x_max - x_min) * self.c_width)
+                px1 = int((b - x_min) / (x_max - x_min) * self.c_width)
+                py0 = int((1 - (d - y_min) / (y_max - y_min)) * self.c_height)
+                py1 = int((1 - (c - y_min) / (y_max - y_min)) * self.c_height)
+                w = max(px1 - px0, 1)
+                h = max(py1 - py0, 1)
+                xs = np.linspace(a, b, w)
+                ys = np.linspace(d, c, h)  # top→bottom in canvas = high y → low y
+                X, Y = np.meshgrid(xs, ys)
+                Z = server_function._raw_eval((X, Y))
+                region_data.append((px0, py0, w, h, Z))
+                all_vals.append(Z.ravel())
+
+            if all_vals:
+                g_min = getattr(self, "func_z_min", None)
+                g_max = getattr(self, "func_z_max", None)
+                if g_min is None:
+                    flat = np.concatenate(all_vals)
+                    g_min, g_max = float(flat.min()), float(flat.max())
+                val_range = max(g_max - g_min, 1e-10)
+                for px0, py0, w, h, Z in region_data:
+                    Z_norm = (Z - g_min) / val_range
+                    R = (Z_norm * 255).astype(np.uint8)
+                    G = np.zeros_like(R)
+                    B = (255 - R).astype(np.uint8)
+                    img_arr[py0 : py0 + h, px0 : px0 + w] = np.stack([R, G, B], axis=2)
+
+            img = Image.fromarray(img_arr, "RGB")
+            self._region_img = ImageTk.PhotoImage(img)
+            self.canvas.create_image(0, 0, anchor="nw", image=self._region_img)
 
             # Draw turtle
-            tx = int((self.current_pos[0] - x_min) * scale_x)
-            ty = int(self.c_height - (self.current_pos[1] - y_min) * scale_y)
-            self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
+            tx = int((self.current_pos[0] - x_min) / (x_max - x_min) * self.c_width)
+            ty = int(
+                (1 - (self.current_pos[1] - y_min) / (y_max - y_min)) * self.c_height
+            )
+            self._rotated_turtle_img = ImageTk.PhotoImage(self.turtle_pil)
+            self.canvas.create_image(tx, ty - 13, image=self._rotated_turtle_img)
+
+    def show_round_end(self, score):
+        self.canvas.create_text(
+            self.c_width // 2,
+            30,
+            text="Round terminé !",
+            font=("Arial", 26, "bold"),
+            fill="black",
+        )
+        self.canvas.create_text(
+            self.c_width // 2,
+            65,
+            text=f"f(x) = {score:.4f}",
+            font=("Arial", 22, "bold"),
+            fill="#e74c3c",
+        )
+        self.canvas.create_text(
+            self.c_width // 2,
+            100,
+            text="En attente du prochain round...",
+            font=("Arial", 13),
+            fill="gray",
+        )
+
+    def _parse_reveal(self, msg):
+        """Parse REVEAL message into list of (username, pos, score)."""
+        players_data = []
+        tokens = msg.split()[1:]  # skip "REVEAL"
+        for token in tokens:
+            fields = token.split("|")
+            if len(fields) < 3:
+                continue
+            name, pos_str, score_str = fields[0], fields[1], fields[2]
+            score = float(score_str)
+            if self.dim == 1:
+                pos = float(pos_str)
+            else:
+                x, y = pos_str.split(",")
+                pos = [float(x), float(y)]
+            players_data.append((name, pos, score))
+        return players_data
+
+    def _draw_own_score(self, players_data):
+        """Draw only the current player's score in the top-right corner."""
+        my_score = next(
+            (score for name, pos, score in players_data if name == username), None
+        )
+        if my_score is None:
+            return
+
+        pad = 10
+        panel_w = 220
+        panel_h = 70
+        x0 = self.c_width - pad - panel_w
+        y0 = pad
+
+        self.canvas.create_rectangle(
+            x0,
+            y0,
+            x0 + panel_w,
+            y0 + panel_h,
+            fill="#1a1a2e",
+            outline="#555",
+            width=1,
+        )
+        self.canvas.create_text(
+            x0 + panel_w // 2,
+            y0 + 18,
+            text="Votre score",
+            fill="white",
+            font=("Arial", 13),
+        )
+        self.canvas.create_text(
+            x0 + panel_w // 2,
+            y0 + 48,
+            text=f"{my_score:.4f}",
+            fill="#e74c3c",
+            font=("Arial", 22, "bold"),
+        )
+
+    def draw_reveal(self, players_data):
+        """Draw the full function with true minimum and all players' final positions."""
+
+        self.canvas.delete("all")
+
+        PLAYER_COLORS = [
+            "#e74c3c",
+            "#e67e22",
+            "#27ae60",
+            "#8e44ad",
+            "#16a085",
+            "#f39c12",
+            "#124ef3",
+            "#1df312",
+        ]
+
+        if self.dim == 1:
+            min_x, max_x = server_function_generator._domain
+            domain_width = max_x - min_x
+            scale_x = self.c_width / domain_width
+            scale_y = self.scale_y
+            mid_y = self.plot_mid_y
+
+            # Draw sand background
+            self.canvas.create_image(
+                0,
+                self.c_height - self.sand_img.height(),
+                anchor="nw",
+                image=self.sand_img,
+            )
+
+            # Draw full function curve
+            xs = np.linspace(min_x, max_x, self.c_width)
+            ys = server_function._raw_eval(xs)
+            pts = [(int(px), int(mid_y - ys[px] * scale_y)) for px in range(len(xs))]
+            self.canvas.create_line(pts, fill="royalblue", width=2)
+
+            # True minimum star
+            m = server_function._true_minimum
+            mpx = int((m["x"] - min_x) * scale_x)
+            mpy = int(mid_y - m["y"] * scale_y)
+            self.canvas.create_text(mpx, mpy, text="★", fill="gold", font=("Arial", 22))
+            self.canvas.create_text(
+                mpx,
+                mpy - 22,
+                text=f"min = {m['y']:.3f}",
+                fill="#c0392b",
+                font=("Arial", 10, "bold"),
+            )
+
+            # Player markers
+            for i, (name, pos, score) in enumerate(players_data):
+                color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+                px = int((pos - min_x) * scale_x)
+                py = int(mid_y - server_function._raw_eval(float(pos)) * scale_y)
+                self.canvas.create_oval(
+                    px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2
+                )
+                self.canvas.create_text(
+                    px,
+                    py - 20,
+                    text=name,
+                    fill=color,
+                    font=("Arial", 10, "bold"),
+                )
+
+            self._draw_own_score(players_data)
+
+        else:
+            x_min, x_max = server_function_generator._domain
+            y_min, y_max = server_function_generator._domain
+            scale_x = self.c_width / (x_max - x_min)
+            scale_y = self.c_height / (y_max - y_min)
+
+            # Build full heatmap via numpy
+            n = 200
+            xs = np.linspace(x_min, x_max, n)
+            ys = np.linspace(y_min, y_max, n)
+            X, Y = np.meshgrid(xs, ys)
+            Z = server_function._raw_eval((X, Y))
+
+            Z_min, Z_max = Z.min(), Z.max()
+            Z_norm = (Z - Z_min) / max(Z_max - Z_min, 1e-10)
+
+            R = (Z_norm * 255).astype(np.uint8)
+            G = np.zeros_like(R)
+            B = (255 - R).astype(np.uint8)
+            img_arr = np.flipud(np.stack([R, G, B], axis=2))
+            img = Image.fromarray(img_arr, "RGB").resize(
+                (self.c_width, self.c_height), Image.NEAREST
+            )
+            self._reveal_img = ImageTk.PhotoImage(img)
+            self.canvas.create_image(0, 0, anchor="nw", image=self._reveal_img)
+
+            # True minimum star
+            m = server_function._true_minimum
+            mpx = int((m["x"][0] - x_min) * scale_x)
+            mpy = int(self.c_height - (m["x"][1] - y_min) * scale_y)
+            self.canvas.create_text(mpx, mpy, text="★", fill="gold", font=("Arial", 22))
+            self.canvas.create_text(
+                mpx,
+                mpy - 22,
+                text=f"min = {m['y']:.3f}",
+                fill="white",
+                font=("Arial", 15, "bold"),
+            )
+
+            # Player markers
+            for i, (name, pos, score) in enumerate(players_data):
+                color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+                px = int((pos[0] - x_min) * scale_x)
+                py = int(self.c_height - (pos[1] - y_min) * scale_y)
+                self.canvas.create_oval(
+                    px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2
+                )
+                self.canvas.create_text(
+                    px,
+                    py - 20,
+                    text=name,
+                    fill="white",
+                    font=("Arial", 10, "bold"),
+                )
+
+            self._draw_own_score(players_data)
 
     def set_dir(self, d):
         self.direction = d  # "up", "down", "left", "right"
 
     def increase_step(self):
         global step_size
-        step_size = round(step_size * 1.3, ndigits=2)
+        if step_size > 0.01:
+            step_size = round(step_size * 1.3, ndigits=2)
+        elif step_size <= 0.01:
+            step_size = 0.02
         self.info_step.config(text=f"Taille de pas: {step_size}")
 
     def decrease_step(self):
@@ -532,10 +769,14 @@ class GameWindow:
         self.info_label.config(text=f"Pas restants: {steps_left}")
 
         if steps_left == 0:
-            score = server_function.evaluate(
-                self.current_pos if self.dim == 2 else self.current_pos[0]
-            )
-            send(f"SCORE {score}")
+            if self.dim == 1:
+                pos_arg = str(self.current_pos[0])
+                score = server_function.evaluate(self.current_pos[0])
+            else:
+                pos_arg = f"{self.current_pos[0]},{self.current_pos[1]}"
+                score = server_function.evaluate(self.current_pos)
+            send(f"SCORE {score} {pos_arg}")
+            self.show_round_end(score)
             threading.Thread(target=self.wait_for_func, daemon=True).start()
 
 

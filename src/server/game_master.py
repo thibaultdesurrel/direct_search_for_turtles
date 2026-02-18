@@ -107,6 +107,11 @@ class GameMasterGUI:
         self.label_submissions = ttk.Label(self.frame_state, text="Submissions: {}")
         self.label_submissions.pack(anchor="w")
 
+        self.label_round_status = ttk.Label(
+            self.frame_state, text="", font=("Arial", 12, "bold")
+        )
+        self.label_round_status.pack(anchor="w", pady=(4, 0))
+
         self.label_leaderboard = ttk.Label(self.frame_state, text="Leaderboard: N/A")
         self.label_leaderboard.pack(anchor="w")
 
@@ -118,6 +123,16 @@ class GameMasterGUI:
             self.frame_buttons, text="Start Game", command=self.start_game
         )
         self.button_start.pack(side="left", padx=5)
+
+        self.button_reveal = ttk.Button(
+            self.frame_buttons, text="Reveal Function", command=self.reveal_function
+        )
+        self.button_reveal.pack(side="left", padx=5)
+
+        self.button_next_round = ttk.Button(
+            self.frame_buttons, text="Next Round", command=self.next_round
+        )
+        self.button_next_round.pack(side="left", padx=5)
 
         self.button_reset = ttk.Button(
             self.frame_buttons, text="Reset Game", command=self.reset_game
@@ -192,27 +207,47 @@ class GameMasterGUI:
 
     def reset_game(self):
         with self.lock:
-            self.game.reset_game()
+            for p in self.game.player_list:
+                try:
+                    p.handler.send("GAME over")
+                except Exception:
+                    pass
+            self.game.reset_game(kick=True)
             print("Game has been reset")
+
+    def reveal_function(self):
+        with self.lock:
+            if not self.game.waiting_for_next_round:
+                self.show_status("Round not finished yet")
+                return
+            self.game.reveal()
+            self.show_status("Function revealed to all players")
+
+    def next_round(self):
+        with self.lock:
+            if not self.game.waiting_for_next_round:
+                self.show_status("Not waiting for next round")
+                return
+            self.game.advance_round()
+            print("Advanced to next round")
 
     def force_finish(self):
         with self.lock:
             if not self.game.started:
-                # Instead of a modal messagebox, show a temporary status
                 self.label_leaderboard.config(text="Status: Game is not running")
                 return
 
-            # Mark all rounds as finished
-            self.game.current_round = self.game.nb_round - 1
-            # Send GAME over to all clients
+            if self.game.waiting_for_next_round:
+                self.show_status("Round already finished")
+                return
+
+            # Force-submit every player who hasn't submitted yet (worst score)
             for p in self.game.player_list:
-                try:
-                    p.handler.send("GAME over")
-                except e:
-                    self.show_status("Error while ending the game")
-            self.game.reset_game()
-            print("Game was force finished")
-            self.label_leaderboard.config(text="Status: Game force finished")
+                if not self.game.submissions.get(p.id, False):
+                    self.game.compute_score(p, float("inf"))
+
+            print("Round force finished")
+            self.show_status("Round force finished")
 
     def update_gui(self):
         with self.lock:
@@ -240,9 +275,33 @@ class GameMasterGUI:
                     p.username: self.game.submissions.get(p.id, False)
                     for p in self.game.player_list
                 }
+                n_done = sum(submissions.values())
+                n_total = len(submissions)
             else:
                 submissions = {}
+                n_done = 0
+                n_total = 0
             self.label_submissions.config(text=f"Submissions: {submissions}")
+
+            # Round status indicator + button states
+            if self.game.started and self.game.waiting_for_next_round:
+                self.label_round_status.config(
+                    text="✅ Tous les joueurs ont terminé le round !",
+                    foreground="green",
+                )
+                self.button_reveal.config(state="normal")
+                self.button_next_round.config(state="normal")
+            elif self.game.started:
+                self.label_round_status.config(
+                    text=f"⏳ En cours... ({n_done}/{n_total} soumissions)",
+                    foreground="orange",
+                )
+                self.button_reveal.config(state="disabled")
+                self.button_next_round.config(state="disabled")
+            else:
+                self.label_round_status.config(text="", foreground="black")
+                self.button_reveal.config(state="disabled")
+                self.button_next_round.config(state="disabled")
 
             # Update leaderboard
             if self.game.leaderboard:
