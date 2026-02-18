@@ -83,7 +83,15 @@ class HiddenFunction:
             self._poly_coeffs, self._noise_terms, self._bumps = self._build(rng)
         else:
             self._poly_coeffs_x, self._poly_coeffs_y, self._noise_terms, self._bumps = self._build_2d(rng)
-        self._true_minimum = self._compute_true_minimum()
+
+        # Compute raw minimum, then shift so the function is strictly positive (min = 0.01)
+        self._shift = 0.0
+        raw_minimum = self._compute_true_minimum()
+        self._shift = max(0.0, -raw_minimum["y"] + 0.01)
+        self._true_minimum = {
+            "x": raw_minimum["x"],
+            "y": raw_minimum["y"] + self._shift,
+        }
 
         self.reset()
 
@@ -204,9 +212,9 @@ class HiddenFunction:
                 y = y + amp * np.cos(freq * x + phase)
             for amp, center, width in self._bumps:
                 y = y + amp * np.exp(-((x - center) ** 2) / (2 * width**2))
-            return y
+            return y + self._shift
         else:
-            return self._raw_eval_2d(x)
+            return self._raw_eval_2d(x) + self._shift
 
     def _raw_eval_2d(self, pos):
         """Evaluate the 2D function.

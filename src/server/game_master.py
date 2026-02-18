@@ -107,6 +107,11 @@ class GameMasterGUI:
         self.label_submissions = ttk.Label(self.frame_state, text="Submissions: {}")
         self.label_submissions.pack(anchor="w")
 
+        self.label_round_status = ttk.Label(
+            self.frame_state, text="", font=("Arial", 12, "bold")
+        )
+        self.label_round_status.pack(anchor="w", pady=(4, 0))
+
         self.label_leaderboard = ttk.Label(self.frame_state, text="Leaderboard: N/A")
         self.label_leaderboard.pack(anchor="w")
 
@@ -266,9 +271,33 @@ class GameMasterGUI:
                     p.username: self.game.submissions.get(p.id, False)
                     for p in self.game.player_list
                 }
+                n_done = sum(submissions.values())
+                n_total = len(submissions)
             else:
                 submissions = {}
+                n_done = 0
+                n_total = 0
             self.label_submissions.config(text=f"Submissions: {submissions}")
+
+            # Round status indicator + button states
+            if self.game.started and self.game.waiting_for_next_round:
+                self.label_round_status.config(
+                    text="✅ Tous les joueurs ont terminé le round !",
+                    foreground="green",
+                )
+                self.button_reveal.config(state="normal")
+                self.button_next_round.config(state="normal")
+            elif self.game.started:
+                self.label_round_status.config(
+                    text=f"⏳ En cours... ({n_done}/{n_total} soumissions)",
+                    foreground="orange",
+                )
+                self.button_reveal.config(state="disabled")
+                self.button_next_round.config(state="disabled")
+            else:
+                self.label_round_status.config(text="", foreground="black")
+                self.button_reveal.config(state="disabled")
+                self.button_next_round.config(state="disabled")
 
             # Update leaderboard
             if self.game.leaderboard:

@@ -328,14 +328,16 @@ class GameWindow:
                 seed = int(msg.split()[1])
                 server_function = server_function_generator.generate(seed)
 
-                global steps_left
+                global steps_left, step_size
                 steps_left = self.steps_left_max
+                step_size = 1.0
                 self.current_pos = [0.0, 0.0]
                 self.explored_ranges = []
 
                 self.reveal_at(self.current_pos)
                 self.draw_region()
                 self.info_label.config(text=f"Pas restants: {steps_left}")
+                self.info_step.config(text="Taille de pas: 1.0")
 
                 waiting_for_func = False
                 return
@@ -343,7 +345,9 @@ class GameWindow:
             if msg.startswith("REVEAL"):
                 players_data = self._parse_reveal(msg)
                 self.root.after(0, lambda d=players_data: self.draw_reveal(d))
-                self.root.after(0, lambda: self.info_label.config(text="Fonction révélée !"))
+                self.root.after(
+                    0, lambda: self.info_label.config(text="Fonction révélée !")
+                )
                 continue  # keep waiting for FUNC or GAME over
 
             if msg.startswith("GAME over"):
@@ -520,6 +524,33 @@ class GameWindow:
             players_data.append((name, pos, score))
         return players_data
 
+    def _draw_own_score(self, players_data):
+        """Draw the current player's own score prominently in the top-right corner."""
+        my_score = next(
+            (score for name, pos, score in players_data if name == username), None
+        )
+        if my_score is None:
+            return
+
+        pad = 10
+        panel_w = 220
+        panel_h = 70
+        x0 = self.c_width - pad - panel_w
+        y0 = pad
+
+        self.canvas.create_rectangle(
+            x0, y0, x0 + panel_w, y0 + panel_h,
+            fill="#1a1a2e", outline="#555", width=1,
+        )
+        self.canvas.create_text(
+            x0 + panel_w // 2, y0 + 18,
+            text="Votre score", fill="white", font=("Arial", 13),
+        )
+        self.canvas.create_text(
+            x0 + panel_w // 2, y0 + 48,
+            text=f"{my_score:.4f}", fill="#e74c3c", font=("Arial", 22, "bold"),
+        )
+
     def draw_reveal(self, players_data):
         """Draw the full function with true minimum and all players' final positions."""
         import numpy as np
@@ -580,12 +611,10 @@ class GameWindow:
                     px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2
                 )
                 self.canvas.create_text(
-                    px,
-                    py - 22,
-                    text=f"{name}: {score:.3f}",
-                    fill=color,
-                    font=("Arial", 9, "bold"),
+                    px, py - 20, text=name, fill=color, font=("Arial", 10, "bold"),
                 )
+
+            self._draw_own_score(players_data)
 
         else:
             from PIL import Image, ImageTk
@@ -625,7 +654,7 @@ class GameWindow:
                 mpy - 22,
                 text=f"min = {m['y']:.3f}",
                 fill="white",
-                font=("Arial", 10, "bold"),
+                font=("Arial", 15, "bold"),
             )
 
             # Player markers
@@ -637,12 +666,10 @@ class GameWindow:
                     px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2
                 )
                 self.canvas.create_text(
-                    px,
-                    py - 20,
-                    text=f"{name}: {score:.3f}",
-                    fill="white",
-                    font=("Arial", 9, "bold"),
+                    px, py - 20, text=name, fill="white", font=("Arial", 10, "bold"),
                 )
+
+            self._draw_own_score(players_data)
 
     def set_dir(self, d):
         self.direction = d  # "up", "down", "left", "right"
