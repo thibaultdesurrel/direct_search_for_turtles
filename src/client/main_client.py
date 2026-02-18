@@ -9,6 +9,7 @@ import random
 import math
 from PIL import Image, ImageTk
 from ..shared.function_generator_claude import FunctionGenerator, Difficulty
+import numpy as np
 
 # -------------------------
 # Global state
@@ -324,7 +325,6 @@ class GameWindow:
 
                 # Compute adaptive vertical scale so the full curve fits in the canvas
                 if self.dim == 1:
-                    import numpy as np
                     _xs = np.linspace(*server_function_generator._domain, 600)
                     _ys = server_function._raw_eval(_xs)
                     _f_min, _f_max = float(_ys.min()), float(_ys.max())
@@ -444,9 +444,6 @@ class GameWindow:
             )
 
         else:
-            import numpy as np
-            from PIL import Image, ImageTk
-
             x_min, x_max = server_function_generator._domain
             y_min, y_max = server_function_generator._domain
 
@@ -479,7 +476,7 @@ class GameWindow:
                     R = (Z_norm * 255).astype(np.uint8)
                     G = np.zeros_like(R)
                     B = (255 - R).astype(np.uint8)
-                    img_arr[py0:py0 + h, px0:px0 + w] = np.stack([R, G, B], axis=2)
+                    img_arr[py0 : py0 + h, px0 : px0 + w] = np.stack([R, G, B], axis=2)
 
             img = Image.fromarray(img_arr, "RGB")
             self._region_img = ImageTk.PhotoImage(img)
@@ -487,7 +484,9 @@ class GameWindow:
 
             # Draw turtle
             tx = int((self.current_pos[0] - x_min) / (x_max - x_min) * self.c_width)
-            ty = int((1 - (self.current_pos[1] - y_min) / (y_max - y_min)) * self.c_height)
+            ty = int(
+                (1 - (self.current_pos[1] - y_min) / (y_max - y_min)) * self.c_height
+            )
             self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
 
     def show_round_end(self, score):
@@ -546,21 +545,31 @@ class GameWindow:
         y0 = pad
 
         self.canvas.create_rectangle(
-            x0, y0, x0 + panel_w, y0 + panel_h,
-            fill="#1a1a2e", outline="#555", width=1,
+            x0,
+            y0,
+            x0 + panel_w,
+            y0 + panel_h,
+            fill="#1a1a2e",
+            outline="#555",
+            width=1,
         )
         self.canvas.create_text(
-            x0 + panel_w // 2, y0 + 18,
-            text="Votre score", fill="white", font=("Arial", 13),
+            x0 + panel_w // 2,
+            y0 + 18,
+            text="Votre score",
+            fill="white",
+            font=("Arial", 13),
         )
         self.canvas.create_text(
-            x0 + panel_w // 2, y0 + 48,
-            text=f"{my_score:.4f}", fill="#e74c3c", font=("Arial", 22, "bold"),
+            x0 + panel_w // 2,
+            y0 + 48,
+            text=f"{my_score:.4f}",
+            fill="#e74c3c",
+            font=("Arial", 22, "bold"),
         )
 
     def draw_reveal(self, players_data):
         """Draw the full function with true minimum and all players' final positions."""
-        import numpy as np
 
         self.canvas.delete("all")
 
@@ -600,9 +609,7 @@ class GameWindow:
             m = server_function._true_minimum
             mpx = int((m["x"] - min_x) * scale_x)
             mpy = int(mid_y - m["y"] * scale_y)
-            self.canvas.create_text(
-                mpx, mpy, text="★", fill="gold", font=("Arial", 22)
-            )
+            self.canvas.create_text(mpx, mpy, text="★", fill="gold", font=("Arial", 22))
             self.canvas.create_text(
                 mpx,
                 mpy - 22,
@@ -630,8 +637,6 @@ class GameWindow:
             self._draw_own_score(players_data)
 
         else:
-            from PIL import Image, ImageTk
-
             x_min, x_max = server_function_generator._domain
             y_min, y_max = server_function_generator._domain
             scale_x = self.c_width / (x_max - x_min)
