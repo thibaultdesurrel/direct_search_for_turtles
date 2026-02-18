@@ -494,9 +494,15 @@ class GameWindow:
         step = step_size
         if self.dim == 1:
             if self.direction in ("right", "up"):  # right
-                self.current_pos[0] += step
+                if self.current_pos[0] + step >= server_function_generator._domain[1]:
+                    self.current_pos[0] = server_function_generator._domain[1] - 0.02
+                else:
+                    self.current_pos[0] += step
             else:  # left
-                self.current_pos[0] -= step
+                if self.current_pos[0] - step <= server_function_generator._domain[0]:
+                    self.current_pos[0] = server_function_generator._domain[0] + 0.02
+                else:
+                    self.current_pos[0] -= step
         else:
             if self.direction == "up":
                 self.current_pos[1] += step
