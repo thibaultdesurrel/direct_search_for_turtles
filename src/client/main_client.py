@@ -22,7 +22,7 @@ joined_game = False
 waiting_for_start = False
 waiting_for_func = False
 current_x = 0.0
-steps_left = 10
+steps_left = None
 step_size = 1.0
 direction = 1
 
@@ -247,15 +247,16 @@ class GameWindow:
         )
 
     def handle_game_start(self, msg):
-        global server_function_generator, nb_round
+        global server_function_generator, nb_round, steps_left
 
         split_msg = msg.split()
         nb_round = int(split_msg[2])
         self.dim = int(split_msg[3])
         difficulty_str = split_msg[4]
         difficulty = Difficulty[difficulty_str.upper()]
+        steps_left = int(split_msg[5])
 
-        domain_str = " ".join(split_msg[5:]).strip()
+        domain_str = " ".join(split_msg[6:]).strip()
         domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
 
         server_function_generator = FunctionGenerator(
@@ -298,7 +299,7 @@ class GameWindow:
         server_function_generator = None
         nb_round = None
 
-        steps_left = 10
+        # steps_left = 10
         current_x = 0.0
         self.explored_ranges = []
 
@@ -323,8 +324,8 @@ class GameWindow:
                 seed = int(msg.split()[1])
                 server_function = server_function_generator.generate(seed)
 
-                global steps_left
-                steps_left = 10
+                # global steps_left
+                # steps_left = 10
                 self.current_pos = [0.0, 0.0]
                 self.explored_ranges = []
 

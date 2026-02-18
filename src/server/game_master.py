@@ -51,6 +51,21 @@ class GameMasterGUI:
 
         self.combo_difficulty.pack(side="left", padx=5)
 
+        # Difficulty selection
+        ttk.Label(self.frame_settings, text="Number of steps:").pack(
+            side="left", padx=(10, 0)
+        )
+        self.nb_step_var = tk.IntVar(value=self.game.nb_step)
+        self.combo_nb_step = ttk.Spinbox(
+            self.frame_settings,
+            textvariable=self.nb_step_var,
+            from_=1,
+            to=100,
+            width=6,
+        )
+
+        self.combo_nb_step.pack(side="left", padx=5)
+
         # Force finish button
         self.button_force = ttk.Button(
             self.frame_settings, text="Force Finish", command=self.force_finish
@@ -59,7 +74,11 @@ class GameMasterGUI:
 
         # Connected players
         self.label_players = ttk.Label(self.root, text="Connected players: []")
-        self.label_players.pack(anchor="w", padx=10, pady=5)
+        self.label_players.pack(anchor="w", padx=10)
+
+        # Number of connected players
+        self.label_players_count = ttk.Label(self.root, text="Number of players: 0")
+        self.label_players_count.pack(anchor="w", padx=10, pady=5)
 
         # Game state frame
         self.frame_state = ttk.Frame(self.root, padding=10)
@@ -136,6 +155,12 @@ class GameMasterGUI:
                 self.show_status("Invalid difficulty!")
                 return
 
+            try:
+                self.game.nb_step = int(self.nb_step_var.get())
+            except ValueError:
+                self.show_status("Invalid number of steps!")
+                return
+
             selected_dim = int(self.dim_var.get())
             print(f"### dim is {selected_dim} ###")
             self.game.start(dim=selected_dim)
@@ -174,6 +199,7 @@ class GameMasterGUI:
             # Update connected players
             players = [p.username or f"id{p.id}" for p in self.game.player_list]
             self.label_players.config(text=f"Connected players: {players}")
+            self.label_players_count.config(text=f"Number of players: {len(players)}")
 
             # Update round
             self.label_round.config(

@@ -8,7 +8,12 @@ class Game:
     """
 
     def __init__(
-        self, dim: int, player_list: list, nb_round: int, difficulty: str = "medium"
+        self,
+        dim: int,
+        player_list: list,
+        nb_round: int,
+        difficulty: str = "medium",
+        nb_step: int = 10,
     ):
         self.nb_round = nb_round
         self.player_list = player_list
@@ -16,6 +21,7 @@ class Game:
         self.started = False
         self.dim = dim
         self.difficulty = difficulty
+        self.nb_step = nb_step
 
         self.leaderboard = None
         self.function_generator = None
@@ -103,7 +109,7 @@ class Game:
         # broadcast game start
         for player in self.player_list:
             player.handler.send(
-                f"GAME start {self.nb_round} {self.dim} {self.difficulty} {self.function_generator._domain}"
+                f"GAME start {self.nb_round} {self.dim} {self.difficulty} {self.nb_step} {self.function_generator._domain}"
             )
             function_seed = self.send_function(self.current_round).seed
             player.handler.send(f"FUNC {function_seed}")
