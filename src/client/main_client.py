@@ -328,14 +328,16 @@ class GameWindow:
                 seed = int(msg.split()[1])
                 server_function = server_function_generator.generate(seed)
 
-                global steps_left
+                global steps_left, step_size
                 steps_left = self.steps_left_max
+                step_size = 1.0
                 self.current_pos = [0.0, 0.0]
                 self.explored_ranges = []
 
                 self.reveal_at(self.current_pos)
                 self.draw_region()
                 self.info_label.config(text=f"Pas restants: {steps_left}")
+                self.info_step.config(text="Taille de pas: 1.0")
 
                 waiting_for_func = False
                 return
@@ -481,26 +483,25 @@ class GameWindow:
             self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
 
     def show_round_end(self, score):
-        self.canvas.delete("all")
         self.canvas.create_text(
             self.c_width // 2,
-            self.c_height // 2 - 50,
+            30,
             text="Round terminé !",
-            font=("Arial", 30, "bold"),
+            font=("Arial", 26, "bold"),
             fill="black",
         )
         self.canvas.create_text(
             self.c_width // 2,
-            self.c_height // 2 + 10,
-            text=f"Le point que vous avez atteint est : f(x) = {score:.4f}",
-            font=("Arial", 22),
-            fill="black",
+            65,
+            text=f"f(x) = {score:.4f}",
+            font=("Arial", 22, "bold"),
+            fill="#e74c3c",
         )
         self.canvas.create_text(
             self.c_width // 2,
-            self.c_height // 2 + 70,
+            100,
             text="En attente du prochain round...",
-            font=("Arial", 14),
+            font=("Arial", 13),
             fill="gray",
         )
 
