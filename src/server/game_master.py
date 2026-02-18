@@ -207,7 +207,12 @@ class GameMasterGUI:
 
     def reset_game(self):
         with self.lock:
-            self.game.reset_game()
+            for p in self.game.player_list:
+                try:
+                    p.handler.send("GAME over")
+                except Exception:
+                    pass
+            self.game.reset_game(kick=True)
             print("Game has been reset")
 
     def reveal_function(self):
