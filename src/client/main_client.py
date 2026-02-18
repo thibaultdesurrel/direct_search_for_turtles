@@ -147,19 +147,6 @@ class GameWindow:
 
         self.dir_var = tk.StringVar(value="0")
 
-        # tk.Button(control_frame, text="↑", command=lambda: self.set_dir("up")).grid(
-        #     row=0, column=1
-        # )
-        # tk.Button(control_frame, text="←", command=lambda: self.set_dir("left")).grid(
-        #     row=1, column=0
-        # )
-        # tk.Button(control_frame, text="↓", command=lambda: self.set_dir("down")).grid(
-        #     row=1, column=1
-        # )
-        # tk.Button(control_frame, text="→", command=lambda: self.set_dir("right")).grid(
-        #     row=1, column=2
-        # )
-
         tk.Button(
             control_frame, text="↑", font=my_font, command=lambda: self.move("up")
         ).grid(row=0, column=1)
@@ -174,14 +161,11 @@ class GameWindow:
         ).grid(row=1, column=2)
 
         tk.Button(control_frame, text="- Pas", command=self.decrease_step).grid(
-            row=2, column=0
+            row=1, column=3
         )
         tk.Button(control_frame, text="+ Pas", command=self.increase_step).grid(
-            row=2, column=1
+            row=0, column=3
         )
-        # tk.Button(control_frame, text="Faire pas", command=self.make_step).grid(
-        #     row=2, column=2
-        # )
 
         tk.Button(root, text="Rejoindre une partie", command=self.join_game).pack()
 
