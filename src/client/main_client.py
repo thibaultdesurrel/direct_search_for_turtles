@@ -342,8 +342,8 @@ class GameWindow:
 
             if msg.startswith("REVEAL"):
                 players_data = self._parse_reveal(msg)
-                self.draw_reveal(players_data)
-                self.info_label.config(text="Fonction révélée !")
+                self.root.after(0, lambda d=players_data: self.draw_reveal(d))
+                self.root.after(0, lambda: self.info_label.config(text="Fonction révélée !"))
                 continue  # keep waiting for FUNC or GAME over
 
             if msg.startswith("GAME over"):
