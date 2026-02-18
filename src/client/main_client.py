@@ -339,8 +339,9 @@ class GameWindow:
                 self.info_label.config(text=f"Pas restants: {steps_left}")
                 self.info_step.config(text="Taille de pas: 1.0")
 
-                waiting_for_func = False
-                return
+                # Stay in the loop: keep listening during the round so a
+                # mid-round GAME over (Force Finish) is caught immediately.
+                continue
 
             if msg.startswith("REVEAL"):
                 players_data = self._parse_reveal(msg)
@@ -523,56 +524,32 @@ class GameWindow:
             players_data.append((name, pos, score))
         return players_data
 
-    def _draw_scoreboard(self, players_data, player_colors):
-        """Draw a score panel in the top-right corner of the canvas."""
-        sorted_players = sorted(
-            enumerate(players_data), key=lambda x: x[1][2]
-        )  # ascending: lower = better
+    def _draw_own_score(self, players_data):
+        """Draw only the current player's score in the top-right corner."""
+        my_score = next(
+            (score for name, pos, score in players_data if name == username), None
+        )
+        if my_score is None:
+            return
 
-        line_h = 32
         pad = 10
-        panel_w = 230
-        panel_h = pad * 2 + 28 + len(players_data) * line_h
-
+        panel_w = 220
+        panel_h = 70
         x0 = self.c_width - pad - panel_w
         y0 = pad
 
         self.canvas.create_rectangle(
-            x0,
-            y0,
-            x0 + panel_w,
-            y0 + panel_h,
-            fill="#1a1a2e",
-            outline="#555",
-            width=1,
+            x0, y0, x0 + panel_w, y0 + panel_h,
+            fill="#1a1a2e", outline="#555", width=1,
         )
         self.canvas.create_text(
-            x0 + panel_w // 2,
-            y0 + pad + 4,
-            text="Scores",
-            fill="white",
-            font=("Arial", 14, "bold"),
+            x0 + panel_w // 2, y0 + 18,
+            text="Votre score", fill="white", font=("Arial", 13),
         )
-
-        for rank, (orig_i, (name, pos, score)) in enumerate(sorted_players):
-            color = player_colors[orig_i % len(player_colors)]
-            y = y0 + pad + 28 + rank * line_h + line_h // 2
-            self.canvas.create_text(
-                x0 + pad,
-                y,
-                text=f"{rank + 1}. {name}",
-                fill=color,
-                font=("Arial", 16, "bold"),
-                anchor="w",
-            )
-            self.canvas.create_text(
-                x0 + panel_w - pad,
-                y,
-                text=f"{score:.3f}",
-                fill=color,
-                font=("Arial", 16, "bold"),
-                anchor="e",
-            )
+        self.canvas.create_text(
+            x0 + panel_w // 2, y0 + 48,
+            text=f"{my_score:.4f}", fill="#e74c3c", font=("Arial", 22, "bold"),
+        )
 
     def draw_reveal(self, players_data):
         """Draw the full function with true minimum and all players' final positions."""
@@ -617,11 +594,11 @@ class GameWindow:
             mpx = int((m["x"] - min_x) * scale_x)
             mpy = int(mid_y - m["y"] * scale_y)
             self.canvas.create_text(
-                mpx, mpy - 18, text="★", fill="gold", font=("Arial", 22)
+                mpx, mpy, text="★", fill="gold", font=("Arial", 22)
             )
             self.canvas.create_text(
                 mpx,
-                mpy - 40,
+                mpy - 22,
                 text=f"min = {m['y']:.3f}",
                 fill="#c0392b",
                 font=("Arial", 10, "bold"),
@@ -643,7 +620,7 @@ class GameWindow:
                     font=("Arial", 10, "bold"),
                 )
 
-            self._draw_scoreboard(players_data, PLAYER_COLORS)
+            self._draw_own_score(players_data)
 
         else:
             from PIL import Image, ImageTk
@@ -702,7 +679,7 @@ class GameWindow:
                     font=("Arial", 10, "bold"),
                 )
 
-            self._draw_scoreboard(players_data, PLAYER_COLORS)
+            self._draw_own_score(players_data)
 
     def set_dir(self, d):
         self.direction = d  # "up", "down", "left", "right"

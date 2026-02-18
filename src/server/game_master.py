@@ -229,21 +229,20 @@ class GameMasterGUI:
     def force_finish(self):
         with self.lock:
             if not self.game.started:
-                # Instead of a modal messagebox, show a temporary status
                 self.label_leaderboard.config(text="Status: Game is not running")
                 return
 
-            # Mark all rounds as finished
-            self.game.current_round = self.game.nb_round - 1
-            # Send GAME over to all clients
+            if self.game.waiting_for_next_round:
+                self.show_status("Round already finished")
+                return
+
+            # Force-submit every player who hasn't submitted yet (worst score)
             for p in self.game.player_list:
-                try:
-                    p.handler.send("GAME over")
-                except e:
-                    self.show_status("Error while ending the game")
-            self.game.reset_game()
-            print("Game was force finished")
-            self.label_leaderboard.config(text="Status: Game force finished")
+                if not self.game.submissions.get(p.id, False):
+                    self.game.compute_score(p, float("inf"))
+
+            print("Round force finished")
+            self.show_status("Round force finished")
 
     def update_gui(self):
         with self.lock:

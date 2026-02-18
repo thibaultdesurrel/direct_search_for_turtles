@@ -89,13 +89,13 @@ class Game:
         for p in self.player_list:
             pos_str = self.player_positions.get(p.id, "")
             score = self.leaderboard.player_function_scores[p.id][self.current_round]
-            if score is None or not pos_str:
-                continue
+            if score is None or score == float("inf"):
+                continue  # force-finished player: no meaningful position or score to show
+            if not pos_str:
+                continue  # no position recorded, skip marker
             parts.append(f"{p.username}|{pos_str}|{score:.6f}")
 
-        if not parts:
-            return
-
+        # Always send REVEAL so clients display the full function and their own score panel
         msg = "REVEAL " + " ".join(parts)
         for p in self.player_list:
             p.handler.send(msg)
