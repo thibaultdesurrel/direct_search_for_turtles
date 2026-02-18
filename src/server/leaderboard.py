@@ -16,10 +16,7 @@ class Leaderboard:
             player.id: [None] * nb_round for player in player_list
         }
 
-        self.player_scores = {
-            player.id: [0] * nb_round for player in player_list
-        }
-
+        self.player_scores = {player.id: [0] * nb_round for player in player_list}
 
     def __str__(self):
         return (
@@ -46,12 +43,8 @@ class Leaderboard:
         self.nb_round = nb_round
         self.player_list = player_list
 
-        self.player_function_scores = {
-            p.id: [None] * nb_round for p in player_list
-        }
-        self.player_scores = {
-            p.id: [0] * nb_round for p in player_list
-        }
+        self.player_function_scores = {p.id: [None] * nb_round for p in player_list}
+        self.player_scores = {p.id: [0] * nb_round for p in player_list}
 
     def update_function_score(self, player: Player, current_round: int, score: float):
         self.player_function_scores[player.id][current_round] = score
@@ -66,7 +59,7 @@ class Leaderboard:
         ranked_players = sorted(
             self.player_list,
             key=lambda p: self.player_function_scores[p.id][current_round],
-            reverse=True
+            reverse=False,
         )
 
         for idx, player in enumerate(ranked_players):

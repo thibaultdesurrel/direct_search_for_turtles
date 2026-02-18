@@ -247,7 +247,7 @@ class GameWindow:
         )
 
     def handle_game_start(self, msg):
-        global server_function_generator, nb_round, steps_left
+        global server_function_generator, nb_round, steps_left, step_size
 
         split_msg = msg.split()
         nb_round = int(split_msg[2])
@@ -256,6 +256,7 @@ class GameWindow:
         difficulty = Difficulty[difficulty_str.upper()]
         self.steps_left_max = int(split_msg[5])
         self.reveal_radius = float(split_msg[6])
+        step_size = 1.0
         steps_left = self.steps_left_max
         domain_str = " ".join(split_msg[7:]).strip()
         domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
@@ -288,7 +289,7 @@ class GameWindow:
                 return
 
     def reset_client_game(self):
-        global joined_game, waiting_for_start, waiting_for_func
+        global joined_game, waiting_for_start, waiting_for_func, step_size
         global server_function, server_function_generator
         global nb_round, steps_left, current_x
 
@@ -303,6 +304,7 @@ class GameWindow:
         steps_left = self.steps_left_max
         print(f"Resetting client game, steps_left set to {steps_left}")
         current_x = 0.0
+        step_size = 1.0
         self.explored_ranges = []
 
         self.canvas.delete("all")
@@ -337,6 +339,12 @@ class GameWindow:
 
                 waiting_for_func = False
                 return
+
+            if msg.startswith("REVEAL"):
+                players_data = self._parse_reveal(msg)
+                self.draw_reveal(players_data)
+                self.info_label.config(text="Fonction révélée !")
+                continue  # keep waiting for FUNC or GAME over
 
             if msg.startswith("GAME over"):
                 waiting_for_func = False
@@ -482,7 +490,7 @@ class GameWindow:
         self.canvas.create_text(
             self.c_width // 2,
             self.c_height // 2 + 10,
-            text=f"Voici votre score : {score:.4f}",
+            text=f"Le point que vous avez atteint est : f(x) = {score:.4f}",
             font=("Arial", 22),
             fill="black",
         )
@@ -494,12 +502,157 @@ class GameWindow:
             fill="gray",
         )
 
+    def _parse_reveal(self, msg):
+        """Parse REVEAL message into list of (username, pos, score)."""
+        players_data = []
+        tokens = msg.split()[1:]  # skip "REVEAL"
+        for token in tokens:
+            fields = token.split("|")
+            if len(fields) < 3:
+                continue
+            name, pos_str, score_str = fields[0], fields[1], fields[2]
+            score = float(score_str)
+            if self.dim == 1:
+                pos = float(pos_str)
+            else:
+                x, y = pos_str.split(",")
+                pos = [float(x), float(y)]
+            players_data.append((name, pos, score))
+        return players_data
+
+    def draw_reveal(self, players_data):
+        """Draw the full function with true minimum and all players' final positions."""
+        import numpy as np
+
+        self.canvas.delete("all")
+
+        PLAYER_COLORS = [
+            "#e74c3c",
+            "#e67e22",
+            "#27ae60",
+            "#8e44ad",
+            "#16a085",
+            "#f39c12",
+        ]
+
+        if self.dim == 1:
+            min_x, max_x = server_function_generator._domain
+            domain_width = max_x - min_x
+            scale_x = self.c_width / domain_width
+            scale_y = 20
+            mid_y = self.c_height // 2
+
+            # Draw sand background
+            self.canvas.create_image(
+                0,
+                self.c_height - self.sand_img.height(),
+                anchor="nw",
+                image=self.sand_img,
+            )
+
+            # Draw full function curve
+            xs = np.linspace(min_x, max_x, self.c_width)
+            ys = server_function._raw_eval(xs)
+            pts = [(int(px), int(mid_y - ys[px] * scale_y)) for px in range(len(xs))]
+            self.canvas.create_line(pts, fill="royalblue", width=2)
+
+            # True minimum star
+            m = server_function._true_minimum
+            mpx = int((m["x"] - min_x) * scale_x)
+            mpy = int(mid_y - m["y"] * scale_y)
+            self.canvas.create_text(
+                mpx, mpy - 18, text="★", fill="gold", font=("Arial", 22)
+            )
+            self.canvas.create_text(
+                mpx,
+                mpy - 40,
+                text=f"min = {m['y']:.3f}",
+                fill="#c0392b",
+                font=("Arial", 10, "bold"),
+            )
+
+            # Player markers
+            for i, (name, pos, score) in enumerate(players_data):
+                color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+                px = int((pos - min_x) * scale_x)
+                py = int(mid_y - server_function._raw_eval(float(pos)) * scale_y)
+                self.canvas.create_oval(
+                    px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2
+                )
+                self.canvas.create_text(
+                    px,
+                    py - 22,
+                    text=f"{name}: {score:.3f}",
+                    fill=color,
+                    font=("Arial", 9, "bold"),
+                )
+
+        else:
+            from PIL import Image, ImageTk
+
+            x_min, x_max = server_function_generator._domain
+            y_min, y_max = server_function_generator._domain
+            scale_x = self.c_width / (x_max - x_min)
+            scale_y = self.c_height / (y_max - y_min)
+
+            # Build full heatmap via numpy
+            n = 200
+            xs = np.linspace(x_min, x_max, n)
+            ys = np.linspace(y_min, y_max, n)
+            X, Y = np.meshgrid(xs, ys)
+            Z = server_function._raw_eval((X, Y))
+
+            Z_min, Z_max = Z.min(), Z.max()
+            Z_norm = (Z - Z_min) / max(Z_max - Z_min, 1e-10)
+
+            R = (Z_norm * 255).astype(np.uint8)
+            G = np.zeros_like(R)
+            B = (255 - R).astype(np.uint8)
+            img_arr = np.flipud(np.stack([R, G, B], axis=2))
+            img = Image.fromarray(img_arr, "RGB").resize(
+                (self.c_width, self.c_height), Image.NEAREST
+            )
+            self._reveal_img = ImageTk.PhotoImage(img)
+            self.canvas.create_image(0, 0, anchor="nw", image=self._reveal_img)
+
+            # True minimum star
+            m = server_function._true_minimum
+            mpx = int((m["x"][0] - x_min) * scale_x)
+            mpy = int(self.c_height - (m["x"][1] - y_min) * scale_y)
+            self.canvas.create_text(mpx, mpy, text="★", fill="gold", font=("Arial", 22))
+            self.canvas.create_text(
+                mpx,
+                mpy - 22,
+                text=f"min = {m['y']:.3f}",
+                fill="white",
+                font=("Arial", 10, "bold"),
+            )
+
+            # Player markers
+            for i, (name, pos, score) in enumerate(players_data):
+                color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+                px = int((pos[0] - x_min) * scale_x)
+                py = int(self.c_height - (pos[1] - y_min) * scale_y)
+                self.canvas.create_oval(
+                    px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2
+                )
+                self.canvas.create_text(
+                    px,
+                    py - 20,
+                    text=f"{name}: {score:.3f}",
+                    fill="white",
+                    font=("Arial", 9, "bold"),
+                )
+
     def set_dir(self, d):
         self.direction = d  # "up", "down", "left", "right"
 
     def increase_step(self):
         global step_size
-        step_size = round(step_size * 1.3, ndigits=2)
+        if step_size > 0.01:
+            step_size = round(step_size * 1.3, ndigits=2)
+        elif step_size <= 0.01:
+            step_size = 0.02
         self.info_step.config(text=f"Taille de pas: {step_size}")
 
     def decrease_step(self):
@@ -556,10 +709,13 @@ class GameWindow:
         self.info_label.config(text=f"Pas restants: {steps_left}")
 
         if steps_left == 0:
-            score = server_function.evaluate(
-                self.current_pos if self.dim == 2 else self.current_pos[0]
-            )
-            send(f"SCORE {score}")
+            if self.dim == 1:
+                pos_arg = str(self.current_pos[0])
+                score = server_function.evaluate(self.current_pos[0])
+            else:
+                pos_arg = f"{self.current_pos[0]},{self.current_pos[1]}"
+                score = server_function.evaluate(self.current_pos)
+            send(f"SCORE {score} {pos_arg}")
             self.show_round_end(score)
             threading.Thread(target=self.wait_for_func, daemon=True).start()
 

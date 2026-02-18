@@ -84,12 +84,13 @@ class ClientHandler:
             return
 
         score = float(args[0])
+        pos_str = args[1] if len(args) > 1 else ""
 
         with self.lock:
             if not self.game.started:
                 self.send("ERROR game not started")
                 return
-            self.game.compute_score(self.player, score)
+            self.game.compute_score(self.player, score, pos_str)
 
 
     def send(self, message: str):

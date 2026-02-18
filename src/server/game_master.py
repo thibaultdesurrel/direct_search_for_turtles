@@ -119,6 +119,11 @@ class GameMasterGUI:
         )
         self.button_start.pack(side="left", padx=5)
 
+        self.button_reveal = ttk.Button(
+            self.frame_buttons, text="Reveal Function", command=self.reveal_function
+        )
+        self.button_reveal.pack(side="left", padx=5)
+
         self.button_next_round = ttk.Button(
             self.frame_buttons, text="Next Round", command=self.next_round
         )
@@ -199,6 +204,14 @@ class GameMasterGUI:
         with self.lock:
             self.game.reset_game()
             print("Game has been reset")
+
+    def reveal_function(self):
+        with self.lock:
+            if not self.game.waiting_for_next_round:
+                self.show_status("Round not finished yet")
+                return
+            self.game.reveal()
+            self.show_status("Function revealed to all players")
 
     def next_round(self):
         with self.lock:
