@@ -323,7 +323,7 @@ class GameWindow:
                 self.current_pos = [0.0, 0.0]
                 self.explored_ranges = []
 
-                # Compute adaptive vertical scale so the full curve fits in the canvas
+                # Compute adaptive scaling from the full function range
                 if self.dim == 1:
                     _xs = np.linspace(*server_function_generator._domain, 600)
                     _ys = server_function._raw_eval(_xs)
@@ -332,6 +332,13 @@ class GameWindow:
                     _margin = self.c_height * 0.12
                     self.scale_y = (self.c_height - 2 * _margin) / _f_range
                     self.plot_mid_y = int(_margin + _f_max * self.scale_y)
+                else:
+                    _lo, _hi = server_function_generator._domain
+                    _xs = np.linspace(_lo, _hi, 100)
+                    _X, _Y = np.meshgrid(_xs, _xs)
+                    _Z = server_function._raw_eval((_X, _Y))
+                    self.func_z_min = float(_Z.min())
+                    self.func_z_max = float(_Z.max())
 
                 self.reveal_at(self.current_pos)
                 self.draw_region()
@@ -468,8 +475,11 @@ class GameWindow:
                 all_vals.append(Z.ravel())
 
             if all_vals:
-                flat = np.concatenate(all_vals)
-                g_min, g_max = flat.min(), flat.max()
+                g_min = getattr(self, "func_z_min", None)
+                g_max = getattr(self, "func_z_max", None)
+                if g_min is None:
+                    flat = np.concatenate(all_vals)
+                    g_min, g_max = float(flat.min()), float(flat.max())
                 val_range = max(g_max - g_min, 1e-10)
                 for px0, py0, w, h, Z in region_data:
                     Z_norm = (Z - g_min) / val_range
@@ -487,7 +497,8 @@ class GameWindow:
             ty = int(
                 (1 - (self.current_pos[1] - y_min) / (y_max - y_min)) * self.c_height
             )
-            self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
+            self._rotated_turtle_img = ImageTk.PhotoImage(self.turtle_pil)
+            self.canvas.create_image(tx, ty - 13, image=self._rotated_turtle_img)
 
     def show_round_end(self, score):
         self.canvas.create_text(
