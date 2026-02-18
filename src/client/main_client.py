@@ -473,12 +473,12 @@ class GameWindow:
 
     def increase_step(self):
         global step_size
-        step_size = round(step_size * 1.3, ndigits=1)
+        step_size = round(step_size * 1.3, ndigits=2)
         self.info_step.config(text=f"Taille de pas: {step_size}")
 
     def decrease_step(self):
         global step_size
-        step_size = round(max(step_size * 0.7, 0), ndigits=1)
+        step_size = round(max(step_size * 0.7, 0), ndigits=2)
         self.info_step.config(text=f"Taille de pas: {step_size}")
 
     def move(self, direction):
