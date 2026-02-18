@@ -470,6 +470,30 @@ class GameWindow:
             ty = int(self.c_height - (self.current_pos[1] - y_min) * scale_y)
             self.canvas.create_oval(tx - 5, ty - 5, tx + 5, ty + 5, fill="red")
 
+    def show_round_end(self, score):
+        self.canvas.delete("all")
+        self.canvas.create_text(
+            self.c_width // 2,
+            self.c_height // 2 - 50,
+            text="Round terminé !",
+            font=("Arial", 30, "bold"),
+            fill="black",
+        )
+        self.canvas.create_text(
+            self.c_width // 2,
+            self.c_height // 2 + 10,
+            text=f"Voici votre score : {score:.4f}",
+            font=("Arial", 22),
+            fill="black",
+        )
+        self.canvas.create_text(
+            self.c_width // 2,
+            self.c_height // 2 + 70,
+            text="En attente du prochain round...",
+            font=("Arial", 14),
+            fill="gray",
+        )
+
     def set_dir(self, d):
         self.direction = d  # "up", "down", "left", "right"
 
@@ -536,6 +560,7 @@ class GameWindow:
                 self.current_pos if self.dim == 2 else self.current_pos[0]
             )
             send(f"SCORE {score}")
+            self.show_round_end(score)
             threading.Thread(target=self.wait_for_func, daemon=True).start()
 
 

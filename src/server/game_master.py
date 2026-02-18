@@ -119,6 +119,11 @@ class GameMasterGUI:
         )
         self.button_start.pack(side="left", padx=5)
 
+        self.button_next_round = ttk.Button(
+            self.frame_buttons, text="Next Round", command=self.next_round
+        )
+        self.button_next_round.pack(side="left", padx=5)
+
         self.button_reset = ttk.Button(
             self.frame_buttons, text="Reset Game", command=self.reset_game
         )
@@ -194,6 +199,14 @@ class GameMasterGUI:
         with self.lock:
             self.game.reset_game()
             print("Game has been reset")
+
+    def next_round(self):
+        with self.lock:
+            if not self.game.waiting_for_next_round:
+                self.show_status("Not waiting for next round")
+                return
+            self.game.advance_round()
+            print("Advanced to next round")
 
     def force_finish(self):
         with self.lock:

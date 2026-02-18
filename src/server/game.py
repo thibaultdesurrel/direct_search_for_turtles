@@ -30,6 +30,7 @@ class Game:
         self.function_list = None
 
         self.submissions = {}  # track who submitted score for current round
+        self.waiting_for_next_round = False  # set True when all submitted, waiting for GM
 
         for player in player_list:
             player.game = self
@@ -53,29 +54,27 @@ class Game:
             # compute points
             self.leaderboard.update_player_scores(self.current_round)
 
-            # broadcast results
+            # wait for the Game Master to click "Next Round"
+            self.waiting_for_next_round = True
+            print(f"Round {self.current_round} complete — waiting for Game Master to advance")
+
+    def advance_round(self):
+        """Called by the Game Master to proceed to the next round (or end the game)."""
+        if not self.waiting_for_next_round:
+            return
+
+        self.waiting_for_next_round = False
+
+        if self.current_round + 1 < self.nb_round:
+            self.current_round += 1
+            print(f"Going to round {self.current_round}")
+            self.submissions = {p.id: False for p in self.player_list}
             for p in self.player_list:
-                pos, pts = self.get_player_result(p, self.current_round)
-
-            # move to next round if any
-            if self.current_round + 1 < self.nb_round:
-                self.current_round += 1
-                print(f"Going to round {self.current_round}")
-                # reset submissions for next round
-                self.submissions = {p.id: False for p in self.player_list}
-
-                # send next function
-                for p in self.player_list:
-                    p.handler.send(
-                        f"FUNC {self.send_function(self.current_round).seed}"
-                    )
-            else:
-                # game over
-                for p in self.player_list:
-                    p.handler.send("GAME over")
-
-                # reset game state so players must rejoin
-                self.reset_game(kick=True)
+                p.handler.send(f"FUNC {self.send_function(self.current_round).seed}")
+        else:
+            for p in self.player_list:
+                p.handler.send("GAME over")
+            self.reset_game(kick=True)
 
     def _round_complete(self, current_round: int) -> bool:
         """
@@ -142,6 +141,7 @@ class Game:
         self.started = False
         self.current_round = 0
         self.submissions = {}
+        self.waiting_for_next_round = False
         if kick:
             self.player_list = []  # Kick all players from the game
         if self.leaderboard:
