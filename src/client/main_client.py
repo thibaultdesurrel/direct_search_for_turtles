@@ -193,6 +193,10 @@ class GameWindow:
         self.dim = 1
         self.direction = "right"
 
+        # Adaptive 1D scaling (recomputed each round)
+        self.scale_y = 20
+        self.plot_mid_y = self.c_height // 2
+
     def bind_keys(self):
         # On nettoie d'abord les anciens binds
         self.root.unbind("<Up>")
@@ -334,6 +338,17 @@ class GameWindow:
                 self.current_pos = [0.0, 0.0]
                 self.explored_ranges = []
 
+                # Compute adaptive vertical scale so the full curve fits in the canvas
+                if self.dim == 1:
+                    import numpy as np
+                    _xs = np.linspace(*server_function_generator._domain, 600)
+                    _ys = server_function._raw_eval(_xs)
+                    _f_min, _f_max = float(_ys.min()), float(_ys.max())
+                    _f_range = _f_max - _f_min if _f_max != _f_min else 1.0
+                    _margin = self.c_height * 0.12
+                    self.scale_y = (self.c_height - 2 * _margin) / _f_range
+                    self.plot_mid_y = int(_margin + _f_max * self.scale_y)
+
                 self.reveal_at(self.current_pos)
                 self.draw_region()
                 self.info_label.config(text=f"Pas restants: {steps_left}")
@@ -407,8 +422,8 @@ class GameWindow:
             min_x, max_x = server_function_generator._domain
             domain_width = max_x - min_x
             scale_x = self.c_width / domain_width
-            scale_y = 20
-            mid_y = self.c_height // 2
+            scale_y = self.scale_y
+            mid_y = self.plot_mid_y
 
             for a, b in self.explored_ranges:
                 start_px = int((a - min_x) * scale_x)
@@ -572,8 +587,8 @@ class GameWindow:
             min_x, max_x = server_function_generator._domain
             domain_width = max_x - min_x
             scale_x = self.c_width / domain_width
-            scale_y = 20
-            mid_y = self.c_height // 2
+            scale_y = self.scale_y
+            mid_y = self.plot_mid_y
 
             # Draw sand background
             self.canvas.create_image(
