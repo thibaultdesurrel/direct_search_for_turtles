@@ -255,8 +255,9 @@ class GameWindow:
         difficulty_str = split_msg[4]
         difficulty = Difficulty[difficulty_str.upper()]
         self.steps_left_max = int(split_msg[5])
+        self.reveal_radius = float(split_msg[6])
         steps_left = self.steps_left_max
-        domain_str = " ".join(split_msg[6:]).strip()
+        domain_str = " ".join(split_msg[7:]).strip()
         domain = tuple(float(x.strip()) for x in domain_str.strip("()").split(","))
 
         server_function_generator = FunctionGenerator(

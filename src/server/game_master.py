@@ -51,7 +51,7 @@ class GameMasterGUI:
 
         self.combo_difficulty.pack(side="left", padx=5)
 
-        # Difficulty selection
+        # Number of step selection
         ttk.Label(self.frame_settings, text="Number of steps:").pack(
             side="left", padx=(10, 0)
         )
@@ -63,8 +63,22 @@ class GameMasterGUI:
             to=100,
             width=6,
         )
-
         self.combo_nb_step.pack(side="left", padx=5)
+
+        # Number of step selection
+        ttk.Label(self.frame_settings, text="Reveal radius:").pack(
+            side="left", padx=(10, 0)
+        )
+        self.reveal_radius_var = tk.DoubleVar(value=self.game.reveal_radius)
+        self.combo_reveal_radius = ttk.Spinbox(
+            self.frame_settings,
+            textvariable=self.reveal_radius_var,
+            from_=0.1,
+            to=10.0,
+            width=6,
+            increment=0.1,
+        )
+        self.combo_reveal_radius.pack(side="left", padx=5)
 
         # Force finish button
         self.button_force = ttk.Button(
@@ -159,6 +173,12 @@ class GameMasterGUI:
                 self.game.nb_step = int(self.nb_step_var.get())
             except ValueError:
                 self.show_status("Invalid number of steps!")
+                return
+
+            try:
+                self.game.reveal_radius = float(self.reveal_radius_var.get())
+            except ValueError:
+                self.show_status("Invalid reveal radius!")
                 return
 
             selected_dim = int(self.dim_var.get())
