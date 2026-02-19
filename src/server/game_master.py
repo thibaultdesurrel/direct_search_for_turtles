@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
+import numpy as np
+from PIL import Image, ImageTk
 
 
 class GameMasterGUI:
@@ -221,7 +223,121 @@ class GameMasterGUI:
                 self.show_status("Round not finished yet")
                 return
             self.game.reveal()
+
+            # Collect data for server-side visualization
+            func = self.game.function_list[self.game.current_round]
+            domain = self.game.function_generator._domain
+            dim = self.game.dim
+            current_round = self.game.current_round
+            players_data = []
+            for p in self.game.player_list:
+                pos_str = self.game.player_positions.get(p.id, "")
+                score = self.game.leaderboard.player_function_scores[p.id][self.game.current_round]
+                if score is None or score == float("inf") or not pos_str:
+                    continue
+                if dim == 1:
+                    pos = float(pos_str)
+                else:
+                    x, y = pos_str.split(",")
+                    pos = [float(x), float(y)]
+                players_data.append((p.username, pos, score))
+
             self.show_status("Function revealed to all players")
+
+        self._open_reveal_window(func, domain, dim, current_round, players_data)
+
+    def _open_reveal_window(self, func, domain, dim, current_round, players_data):
+        PLAYER_COLORS = [
+            "#e74c3c", "#e67e22", "#27ae60", "#8e44ad",
+            "#16a085", "#f39c12", "#124ef3", "#1df312",
+        ]
+
+        c_width, c_height = 800, 600
+        min_x, max_x = domain
+
+        win = tk.Toplevel(self.root)
+        win.title(f"Function Reveal - Round {current_round + 1}")
+        canvas = tk.Canvas(win, width=c_width, height=c_height, bg="white")
+        canvas.pack()
+
+        if dim == 1:
+            # Compute adaptive Y scaling from full function range
+            xs_full = np.linspace(min_x, max_x, 600)
+            ys_full = func._raw_eval(xs_full)
+            f_min, f_max = float(ys_full.min()), float(ys_full.max())
+            f_range = f_max - f_min if f_max != f_min else 1.0
+            margin = c_height * 0.12
+            scale_y = (c_height - 2 * margin) / f_range
+            mid_y = int(margin + f_max * scale_y)
+            scale_x = c_width / (max_x - min_x)
+
+            # Draw full function curve
+            xs_plot = np.linspace(min_x, max_x, c_width)
+            ys_plot = func._raw_eval(xs_plot)
+            pts = [(i, int(mid_y - ys_plot[i] * scale_y)) for i in range(c_width)]
+            canvas.create_line(pts, fill="royalblue", width=2)
+
+            # True minimum star
+            m = func._true_minimum
+            mpx = int((m["x"] - min_x) * scale_x)
+            mpy = int(mid_y - m["y"] * scale_y)
+            canvas.create_text(mpx, mpy, text="★", fill="gold", font=("Arial", 22))
+            canvas.create_text(
+                mpx, mpy - 22, text=f"min = {m['y']:.3f}",
+                fill="#c0392b", font=("Arial", 10, "bold"),
+            )
+
+            # Player markers
+            for i, (name, pos, score) in enumerate(players_data):
+                color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+                px = int((pos - min_x) * scale_x)
+                py = int(mid_y - func._raw_eval(float(pos)) * scale_y)
+                canvas.create_oval(px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2)
+                canvas.create_text(px, py - 20, text=name, fill=color, font=("Arial", 10, "bold"))
+                canvas.create_text(px, py + 20, text=f"{score:.4f}", fill=color, font=("Arial", 9))
+
+        else:
+            y_min, y_max = domain
+            scale_x = c_width / (max_x - min_x)
+            scale_y = c_height / (y_max - y_min)
+
+            # Build full heatmap
+            n = 200
+            xs = np.linspace(min_x, max_x, n)
+            ys = np.linspace(y_min, y_max, n)
+            X, Y = np.meshgrid(xs, ys)
+            Z = func._raw_eval((X, Y))
+
+            Z_min, Z_max = Z.min(), Z.max()
+            Z_norm = (Z - Z_min) / max(Z_max - Z_min, 1e-10)
+
+            R = (Z_norm * 255).astype(np.uint8)
+            G = np.zeros_like(R)
+            B = (255 - R).astype(np.uint8)
+            img_arr = np.flipud(np.stack([R, G, B], axis=2))
+            img = Image.fromarray(img_arr, "RGB").resize((c_width, c_height), Image.NEAREST)
+
+            win._reveal_img = ImageTk.PhotoImage(img)
+            canvas.create_image(0, 0, anchor="nw", image=win._reveal_img)
+
+            # True minimum star
+            m = func._true_minimum
+            mpx = int((m["x"][0] - min_x) * scale_x)
+            mpy = int(c_height - (m["x"][1] - y_min) * scale_y)
+            canvas.create_text(mpx, mpy, text="★", fill="gold", font=("Arial", 22))
+            canvas.create_text(
+                mpx, mpy - 22, text=f"min = {m['y']:.3f}",
+                fill="white", font=("Arial", 15, "bold"),
+            )
+
+            # Player markers
+            for i, (name, pos, score) in enumerate(players_data):
+                color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+                px = int((pos[0] - min_x) * scale_x)
+                py = int(c_height - (pos[1] - y_min) * scale_y)
+                canvas.create_oval(px - 7, py - 7, px + 7, py + 7, fill=color, outline="black", width=2)
+                canvas.create_text(px, py - 20, text=name, fill="white", font=("Arial", 10, "bold"))
+                canvas.create_text(px, py + 20, text=f"{score:.4f}", fill="white", font=("Arial", 9))
 
     def next_round(self):
         with self.lock:
